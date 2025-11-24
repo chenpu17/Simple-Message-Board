@@ -628,11 +628,12 @@ function insertNewMessage(message, listElement) {
     // 渲染标签
     let tagsHtml = '';
     if (message.tags && message.tags.length > 0) {
-        tagsHtml = '<div class="flex flex-wrap gap-2 mt-3">';
+        tagsHtml = '<div class="message-tags flex flex-wrap gap-2 mt-3" data-all-tags=\'' + escapeAttributeClient(JSON.stringify(message.tags)) + '\'>';
         message.tags.forEach(function(tag) {
             tagsHtml += '<a href="/?tag=' + tag.id + '" ' +
-                'class="group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95" ' +
-                'style="background-color: ' + tag.color + '10; color: ' + tag.color + '; border: 1px solid ' + tag.color + '20;">' +
+                'class="tag-item group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95" ' +
+                'style="background-color: ' + tag.color + '10; color: ' + tag.color + '; border: 1px solid ' + tag.color + '20;" ' +
+                'data-usage-count="' + (tag.usage_count || 0) + '">' +
                 '<span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>' +
                 escapeHtmlClient(tag.name) +
                 '</a>';
@@ -681,6 +682,12 @@ function insertNewMessage(message, listElement) {
             enhanceCodeBlockSingle(pre);
         }
     });
+
+    // 应用响应式标签显示
+    const tagsContainer = li.querySelector('.message-tags');
+    if (tagsContainer) {
+        applyResponsiveTags(tagsContainer);
+    }
 }
 
 function escapeAttributeClient(value = '') {
@@ -721,11 +728,159 @@ function updateStatsCounter(increment) {
     }
 }
 
+/**
+ * 根据屏幕宽度计算可显示的标签数量
+ */
+function calculateMaxVisibleTags() {
+    const width = window.innerWidth;
+    if (width < 640) {
+        // Mobile: 窄屏最多显示 5 个标签
+        return 5;
+    } else if (width < 1024) {
+        // Tablet: 中等屏幕最多显示 8 个标签
+        return 8;
+    } else if (width < 1536) {
+        // Desktop: 大屏最多显示 12 个标签
+        return 12;
+    } else {
+        // Large Desktop: 超大屏最多显示 15 个标签
+        return 15;
+    }
+}
+
+/**
+ * 响应式显示标签 - 根据容器实际宽度和标签实际宽度动态计算
+ */
+function applyResponsiveTags(container) {
+    const tagItems = container.querySelectorAll('.tag-item');
+
+    if (tagItems.length === 0) {
+        return;
+    }
+
+    // 获取容器可用宽度
+    const containerWidth = container.offsetWidth;
+    if (containerWidth === 0) {
+        // 容器未渲染，稍后重试
+        return;
+    }
+
+    // 计算每个标签的宽度（包括margin）
+    let totalWidth = 0;
+    let maxVisible = 0;
+    const gap = 8; // gap-2 = 8px
+    const moreButtonWidth = 60; // "+N" 按钮的预估宽度
+
+    // 遍历标签，累加宽度直到超出容器
+    for (let i = 0; i < tagItems.length; i++) {
+        const tag = tagItems[i];
+        const tagWidth = tag.offsetWidth || tag.getBoundingClientRect().width;
+
+        // 检查是否是最后几个标签，如果是则需要预留"更多"按钮的空间
+        const needMoreButton = (i < tagItems.length - 1);
+        const requiredWidth = totalWidth + tagWidth + (needMoreButton ? moreButtonWidth + gap : 0);
+
+        if (requiredWidth > containerWidth) {
+            // 超出容器宽度，停止计数
+            break;
+        }
+
+        totalWidth += tagWidth + gap;
+        maxVisible = i + 1;
+    }
+
+    // 如果所有标签都能显示，则全部显示
+    if (maxVisible >= tagItems.length) {
+        tagItems.forEach(tag => tag.style.display = '');
+        const moreBtn = container.querySelector('.tag-more-btn');
+        if (moreBtn) {
+            moreBtn.remove();
+        }
+        container.dataset.expanded = 'false';
+        return;
+    }
+
+    // 确保至少显示1个标签
+    maxVisible = Math.max(1, maxVisible);
+
+    // 根据是否展开来显示/隐藏标签
+    const isExpanded = container.dataset.expanded === 'true';
+
+    tagItems.forEach((tag, index) => {
+        if (isExpanded || index < maxVisible) {
+            tag.style.display = '';
+        } else {
+            tag.style.display = 'none';
+        }
+    });
+
+    // 添加或更新"更多"按钮
+    let moreBtn = container.querySelector('.tag-more-btn');
+    const hiddenCount = tagItems.length - maxVisible;
+
+    if (!moreBtn) {
+        moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'tag-more-btn inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground';
+
+        // 点击展开/收起
+        moreBtn.addEventListener('click', function() {
+            const expanded = container.dataset.expanded === 'true';
+            if (expanded) {
+                // 收起
+                tagItems.forEach((tag, index) => {
+                    if (index >= maxVisible) {
+                        tag.style.display = 'none';
+                    }
+                });
+                container.dataset.expanded = 'false';
+                this.innerHTML = '<span>+' + hiddenCount + '</span>';
+            } else {
+                // 展开
+                tagItems.forEach(tag => tag.style.display = '');
+                container.dataset.expanded = 'true';
+                this.innerHTML = '<span>−</span>';
+            }
+        });
+
+        container.appendChild(moreBtn);
+    }
+
+    // 更新按钮文本
+    if (isExpanded) {
+        moreBtn.innerHTML = '<span>−</span>';
+        moreBtn.style.display = '';
+    } else {
+        moreBtn.innerHTML = '<span>+' + hiddenCount + '</span>';
+        moreBtn.style.display = '';
+    }
+}
+
+/**
+ * 初始化所有留言的响应式标签显示
+ */
+function initializeResponsiveTags() {
+    const tagContainers = document.querySelectorAll('.message-tags');
+    tagContainers.forEach(container => {
+        applyResponsiveTags(container);
+    });
+}
+
+// 窗口大小变化时重新计算
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        initializeResponsiveTags();
+    }, 200);
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeLanguage();
     initializeTheme();
     initializeMarkdownRendering();
     initializeAutoRefresh();
+    initializeResponsiveTags();
 
     const textarea = document.getElementById('message');
     if (textarea) {

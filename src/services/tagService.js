@@ -85,21 +85,23 @@ async function addTagsToMessage(messageId, tagNames) {
 }
 
 /**
- * 获取留言的所有标签
+ * 获取留言的所有标签（按引用数量降序排列）
  */
 async function getMessageTags(messageId) {
     const sql = `
-        SELECT t.id, t.name, t.color
+        SELECT t.id, t.name, t.color, COUNT(mt2.message_id) as usage_count
         FROM tags t
         INNER JOIN message_tags mt ON t.id = mt.tag_id
+        LEFT JOIN message_tags mt2 ON t.id = mt2.tag_id
         WHERE mt.message_id = ?
-        ORDER BY t.name ASC
+        GROUP BY t.id
+        ORDER BY usage_count DESC, t.name ASC
     `;
     return await dbAll(sql, [messageId]);
 }
 
 /**
- * 批量获取多条留言的标签
+ * 批量获取多条留言的标签（按引用数量降序排列）
  */
 async function getMessageTagsBatch(messageIds) {
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
@@ -108,11 +110,13 @@ async function getMessageTagsBatch(messageIds) {
 
     const placeholders = messageIds.map(() => '?').join(',');
     const sql = `
-        SELECT mt.message_id, t.id, t.name, t.color
+        SELECT mt.message_id, t.id, t.name, t.color, COUNT(mt2.message_id) as usage_count
         FROM tags t
         INNER JOIN message_tags mt ON t.id = mt.tag_id
+        LEFT JOIN message_tags mt2 ON t.id = mt2.tag_id
         WHERE mt.message_id IN (${placeholders})
-        ORDER BY t.name ASC
+        GROUP BY mt.message_id, t.id
+        ORDER BY usage_count DESC, t.name ASC
     `;
 
     const rows = await dbAll(sql, messageIds);
@@ -126,7 +130,8 @@ async function getMessageTagsBatch(messageIds) {
         result[row.message_id].push({
             id: row.id,
             name: row.name,
-            color: row.color
+            color: row.color,
+            usage_count: row.usage_count
         });
     }
 

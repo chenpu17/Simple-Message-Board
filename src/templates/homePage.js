@@ -9,13 +9,14 @@ function renderMessageItem({ id, content, created_at, tags }, currentPage, searc
     const searchHidden = searchTerm ? `<input type="hidden" name="q" value="${escapeAttribute(searchTerm)}">` : '';
     const tagHidden = tagFilter ? `<input type="hidden" name="tag" value="${escapeAttribute(tagFilter)}">` : '';
 
-    // 渲染标签
+    // 渲染标签 - 传递所有标签到前端，由前端根据屏幕宽度自适应显示
     const tagsHtml = tags && tags.length > 0
-        ? `<div class="flex flex-wrap gap-2 mt-3">
+        ? `<div class="message-tags flex flex-wrap gap-2 mt-3" data-all-tags='${escapeAttribute(JSON.stringify(tags))}'>
             ${tags.map(tag => `
-                <a href="/?tag=${tag.id}" 
-                   class="group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95" 
-                   style="background-color: ${tag.color}10; color: ${tag.color}; border: 1px solid ${tag.color}20;">
+                <a href="/?tag=${tag.id}"
+                   class="tag-item group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95"
+                   style="background-color: ${tag.color}10; color: ${tag.color}; border: 1px solid ${tag.color}20;"
+                   data-usage-count="${tag.usage_count || 0}">
                     <span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>
                     ${escapeHtml(tag.name)}
                 </a>
