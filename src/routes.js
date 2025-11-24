@@ -2,7 +2,7 @@ const url = require('url');
 const querystring = require('querystring');
 const { sendHtml, sendJson, redirect, notFound, serveStatic } = require('./utils/http');
 const { readBody } = require('./utils/body');
-const { listMessages, createMessage, deleteMessage, fetchMessagesSince, getTotalCount } = require('./services/messageService');
+const { listMessages, createMessage, deleteMessage, fetchMessagesSince, getTotalCount, getFilteredCount } = require('./services/messageService');
 const { getAllTags } = require('./services/tagService');
 const { renderHomePage } = require('./templates/homePage');
 const { buildListPath } = require('./utils/paths');
@@ -83,7 +83,8 @@ async function handleDelete(req, res) {
 
     await deleteMessage(id);
 
-    const totalMessages = await getTotalCount();
+    // Use filtered count instead of global count to compute correct total pages
+    const totalMessages = await getFilteredCount(searchTerm, tagFilter);
     const totalPages = Math.max(1, Math.min(MAX_PAGES, Math.ceil(totalMessages / PAGE_SIZE)));
 
     let targetPage = Number.parseInt(page, 10);

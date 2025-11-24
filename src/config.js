@@ -1,8 +1,8 @@
 const path = require('path');
 
 const PAGE_SIZE = 50;
-const MAX_MESSAGES = 1000;
-const MAX_PAGES = MAX_MESSAGES / PAGE_SIZE;
+const MAX_MESSAGES = 1024;
+const MAX_PAGES = Math.ceil(MAX_MESSAGES / PAGE_SIZE);
 const PORT = process.env.PORT ? Number(process.env.PORT) : 13478;
 
 const DATA_DIR = path.join(__dirname, '..', 'data');

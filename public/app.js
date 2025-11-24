@@ -133,6 +133,8 @@ function applyLanguage(mode) {
         if (element.dataset.uppercase === 'true' && typeof value === 'string') {
             value = value.toUpperCase();
         }
+        // data-i18n should only be used on text-only elements
+        // For complex structures with icons, wrap the text in a separate span with data-i18n
         element.textContent = value;
     });
 
@@ -141,6 +143,15 @@ function applyLanguage(mode) {
         if (!key) return;
         const params = getParams(element);
         element.setAttribute('placeholder', t(key, params, mode));
+    });
+
+    document.querySelectorAll('[data-i18n-title]').forEach((element) => {
+        const key = element.dataset.i18nTitle;
+        if (!key) return;
+        const params = getParams(element);
+        const value = t(key, params, mode);
+        element.setAttribute('title', value);
+        element.setAttribute('aria-label', value);
     });
 
     document.title = t('headerTitle', {}, mode);
@@ -463,13 +474,10 @@ function wrapCodeBlock(pre) {
 
     copyButton.addEventListener('click', () => {
         const originalText = codeElement.innerText;
-        const reset = () => {
-            copyButton.textContent = t('copyButton');
-        };
 
         const finish = (messageKey) => {
-            copyButton.textContent = t(messageKey);
-            setTimeout(reset, 1600);
+            const type = messageKey === 'copySuccess' ? 'success' : 'error';
+            showToast(t(messageKey), type);
         };
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -498,6 +506,41 @@ function wrapCodeBlock(pre) {
         body.appendChild(pre);
         wrapper.appendChild(body);
     }
+}
+
+function showToast(message, type = 'default') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-foreground px-4 py-2.5 text-sm font-medium text-background shadow-lg shadow-black/10 transition-all duration-300 translate-y-8 opacity-0';
+    
+    // Icon based on type (optional, simpler to just use text for now or SVG)
+    let icon = '';
+    if (type === 'success') {
+        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    }
+    
+    toast.innerHTML = `${icon}<span>${message}</span>`;
+
+    container.appendChild(toast);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-8', 'opacity-0');
+    });
+
+    setTimeout(() => {
+        toast.classList.add('translate-y-4', 'opacity-0');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000);
 }
 
 function enhanceCodeBlocks() {
@@ -585,9 +628,12 @@ function insertNewMessage(message, listElement) {
     // 渲染标签
     let tagsHtml = '';
     if (message.tags && message.tags.length > 0) {
-        tagsHtml = '<div class="flex flex-wrap gap-1.5 mt-3">';
+        tagsHtml = '<div class="flex flex-wrap gap-2 mt-3">';
         message.tags.forEach(function(tag) {
-            tagsHtml += '<a href="/?tag=' + tag.id + '" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors hover:opacity-80" style="background-color: ' + tag.color + '20; color: ' + tag.color + '; border: 1px solid ' + tag.color + '40;">' +
+            tagsHtml += '<a href="/?tag=' + tag.id + '" ' +
+                'class="group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95" ' +
+                'style="background-color: ' + tag.color + '10; color: ' + tag.color + '; border: 1px solid ' + tag.color + '20;">' +
+                '<span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>' +
                 escapeHtmlClient(tag.name) +
                 '</a>';
         });
@@ -608,7 +654,10 @@ function insertNewMessage(message, listElement) {
         '<form action="/delete" method="post" class="flex shrink-0 items-center justify-end sm:self-start">' +
         '<input type="hidden" name="id" value="' + message.id + '">' +
         '<input type="hidden" name="page" value="' + currentPage + '">' +
-        '<button type="submit" class="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-destructive/40 bg-destructive/10 px-3 text-xs font-medium text-destructive shadow-sm transition hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-i18n="deleteButton">' + t('deleteButton') + '</button>' +
+        '<button type="submit" class="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-destructive/40 bg-destructive/10 px-3 text-xs font-medium text-destructive shadow-sm transition hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-i18n-title="deleteButton">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
+        '<span data-i18n="deleteButton">' + t('deleteButton') + '</span>' +
+        '</button>' +
         '</form>' +
         '</div>';
 

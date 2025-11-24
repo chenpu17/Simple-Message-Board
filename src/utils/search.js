@@ -5,7 +5,7 @@ function buildSearchClause(input = '') {
     }
     const escaped = term.replace(/([%_\\])/g, '\\$1');
     return {
-        clause: "WHERE content LIKE ? ESCAPE '\\\\'",
+        clause: "WHERE content LIKE ? ESCAPE '\\'",
         params: [`%${escaped}%`],
         term
     };

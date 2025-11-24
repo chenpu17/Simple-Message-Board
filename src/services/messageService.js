@@ -141,10 +141,36 @@ async function getTotalCount() {
     return totalRow?.count ? Number(totalRow.count) : 0;
 }
 
+async function getFilteredCount(searchRaw, tagFilter) {
+    const { clause: searchClause, params: searchParams } = buildSearchClause(searchRaw || '');
+
+    let baseQuery = 'FROM messages';
+    let whereClause = searchClause;
+    let queryParams = [...searchParams];
+
+    // 如果有标签过滤
+    if (tagFilter) {
+        const tagId = Number.parseInt(tagFilter, 10);
+        if (!Number.isNaN(tagId)) {
+            baseQuery += ' INNER JOIN message_tags mt ON messages.id = mt.message_id';
+            if (whereClause) {
+                whereClause += ' AND mt.tag_id = ?';
+            } else {
+                whereClause = 'WHERE mt.tag_id = ?';
+            }
+            queryParams.push(tagId);
+        }
+    }
+
+    const totalRow = await dbGet(`SELECT COUNT(DISTINCT messages.id) AS count ${baseQuery} ${whereClause}`, queryParams);
+    return totalRow?.count ? Number(totalRow.count) : 0;
+}
+
 module.exports = {
     listMessages,
     createMessage,
     deleteMessage,
     fetchMessagesSince,
-    getTotalCount
+    getTotalCount,
+    getFilteredCount
 };
