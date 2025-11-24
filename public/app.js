@@ -25,6 +25,7 @@ const translations = {
         toolbarQuote: '引用',
         toolbarLink: '链接',
         textareaPlaceholder: '试试使用 **Markdown** 语法，支持代码块、列表等格式。',
+        tagsPlaceholder: '添加标签（用逗号或空格分隔）',
         searchTitle: '搜索留言',
         searchSubtitle: '支持模糊匹配并保留分页',
         searchButton: '搜索',
@@ -39,7 +40,7 @@ const translations = {
         paginationPrev: '上一页',
         paginationNext: '下一页',
         emptyDefault: '还没有留言，快来留下第一条消息吧～',
-        emptySearch: function ({ term }) { return '没有找到包含 “' + term + '” 的留言。'; },
+        emptySearch: function ({ term }) { return '没有找到包含 "' + term + '" 的留言。'; },
         copyButton: '复制',
         copySuccess: '已复制',
         copyFailure: '复制失败',
@@ -63,6 +64,7 @@ const translations = {
         toolbarQuote: 'Quote',
         toolbarLink: 'Link',
         textareaPlaceholder: 'Try **Markdown** syntax — code blocks, lists, etc.',
+        tagsPlaceholder: 'Add tags (comma or space separated)',
         searchTitle: 'Search Messages',
         searchSubtitle: 'Supports fuzzy matching and keeps pagination',
         searchButton: 'Search',
@@ -77,7 +79,7 @@ const translations = {
         paginationPrev: 'Previous',
         paginationNext: 'Next',
         emptyDefault: 'No messages yet — be the first!',
-        emptySearch: function ({ term }) { return 'No messages found containing “' + term + '”.'; },
+        emptySearch: function ({ term }) { return 'No messages found containing "' + term + '".'; },
         copyButton: 'Copy',
         copySuccess: 'Copied',
         copyFailure: 'Copy failed',
@@ -511,8 +513,10 @@ function initializeAutoRefresh() {
     const urlParams = new URLSearchParams(window.location.search);
     const currentPage = parseInt(urlParams.get('page'), 10) || 1;
     const searchQuery = urlParams.get('q') || '';
+    const tagFilter = urlParams.get('tag') || '';
 
-    if (currentPage !== 1 || searchQuery.trim() !== '') {
+    // 禁用自动刷新：如果不在第一页，或有搜索/标签过滤
+    if (currentPage !== 1 || searchQuery.trim() !== '' || tagFilter.trim() !== '') {
         return;
     }
 
@@ -578,15 +582,28 @@ function insertNewMessage(message, listElement) {
     const urlParams = new URLSearchParams(window.location.search);
     const currentPage = parseInt(urlParams.get('page'), 10) || 1;
 
+    // 渲染标签
+    let tagsHtml = '';
+    if (message.tags && message.tags.length > 0) {
+        tagsHtml = '<div class="flex flex-wrap gap-1.5 mt-3">';
+        message.tags.forEach(function(tag) {
+            tagsHtml += '<a href="/?tag=' + tag.id + '" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors hover:opacity-80" style="background-color: ' + tag.color + '20; color: ' + tag.color + '; border: 1px solid ' + tag.color + '40;">' +
+                escapeHtmlClient(tag.name) +
+                '</a>';
+        });
+        tagsHtml += '</div>';
+    }
+
     const li = document.createElement('li');
     li.className = 'rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md';
     li.dataset.messageId = message.id;
     li.style.animation = 'slideIn 0.35s ease-out';
 
     li.innerHTML = '<div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">' +
-        '<div class="flex-1 min-w-0 space-y-3">' +
-        '<p class="text-xs font-medium text-muted-foreground">' + displayTime + '</p>' +
+        '<div class="flex-1 min-w-0">' +
+        '<p class="text-xs font-medium text-muted-foreground mb-2">' + displayTime + '</p>' +
         '<div class="message-content prose prose-slate max-w-none text-sm dark:prose-invert" data-markdown="' + safeMarkdown + '">' + fallbackHtml + '</div>' +
+        tagsHtml +
         '</div>' +
         '<form action="/delete" method="post" class="flex shrink-0 items-center justify-end sm:self-start">' +
         '<input type="hidden" name="id" value="' + message.id + '">' +

@@ -10,6 +10,9 @@ function ensureDataDir() {
 
 const db = new sqlite3.Database(DB_PATH);
 
+// 启用外键约束
+db.run('PRAGMA foreign_keys = ON');
+
 function initDb() {
     ensureDataDir();
     db.serialize(() => {
@@ -23,6 +26,36 @@ function initDb() {
         db.run(`
             CREATE INDEX IF NOT EXISTS idx_messages_created_at
             ON messages (created_at DESC)
+        `);
+
+        // 标签表
+        db.run(`
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                color TEXT NOT NULL DEFAULT '#3b82f6'
+            )
+        `);
+
+        // 留言-标签关联表
+        db.run(`
+            CREATE TABLE IF NOT EXISTS message_tags (
+                message_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (message_id, tag_id),
+                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )
+        `);
+
+        db.run(`
+            CREATE INDEX IF NOT EXISTS idx_message_tags_message
+            ON message_tags (message_id)
+        `);
+
+        db.run(`
+            CREATE INDEX IF NOT EXISTS idx_message_tags_tag
+            ON message_tags (tag_id)
         `);
     });
 }

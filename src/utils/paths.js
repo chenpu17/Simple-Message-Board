@@ -1,16 +1,27 @@
-function buildListPath(page, searchTerm = '') {
-    const trimmed = searchTerm ? searchTerm : '';
-    if (page <= 1) {
-        if (!trimmed) {
-            return '/';
-        }
-        return `/?q=${encodeURIComponent(trimmed)}`;
+function buildListPath(page, searchTerm = '', tagFilter = '') {
+    const trimmedSearch = searchTerm ? searchTerm : '';
+    const trimmedTag = tagFilter ? tagFilter : '';
+
+    // 构建查询参数
+    const params = [];
+
+    if (page > 1) {
+        params.push(`page=${page}`);
     }
-    const base = `/?page=${page}`;
-    if (!trimmed) {
-        return base;
+
+    if (trimmedSearch) {
+        params.push(`q=${encodeURIComponent(trimmedSearch)}`);
     }
-    return `${base}&q=${encodeURIComponent(trimmed)}`;
+
+    if (trimmedTag) {
+        params.push(`tag=${encodeURIComponent(trimmedTag)}`);
+    }
+
+    if (params.length === 0) {
+        return '/';
+    }
+
+    return '/?' + params.join('&');
 }
 
 module.exports = { buildListPath };
