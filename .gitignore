@@ -1,4 +1,6 @@
 .claude/
+CLAUDE.md
+GEMINI.md
 .npm-cache/
 node_modules/
 data/
