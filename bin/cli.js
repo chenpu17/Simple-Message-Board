@@ -121,15 +121,23 @@ function startDaemon(options) {
     } else {
         // Run as daemon
         const logFile = getLogFile(options.dataDir);
-        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+        // Open log file synchronously to ensure fd is ready for spawn
+        const logFd = fs.openSync(logFile, 'a');
         const child = spawn(process.execPath, [serverPath], {
             env,
             detached: true,
-            stdio: ['ignore', logStream, logStream]
+            stdio: ['ignore', logFd, logFd]
         });
 
         child.unref();
         writePid(options.dataDir, child.pid);
+
+        // Close the fd in parent process after spawning
+        try {
+            fs.closeSync(logFd);
+        } catch (e) {
+            // Ignore close errors
+        }
 
         console.log(`Message board started successfully!`);
         console.log(`PID: ${child.pid}`);
