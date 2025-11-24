@@ -101,6 +101,10 @@ message-board status
 # 查看最近日志（最后 50 行）
 message-board logs
 
+# 查看版本信息
+message-board --version
+message-board version
+
 # 查看帮助
 message-board help
 ```
@@ -277,6 +281,10 @@ message-board status
 
 # View recent logs (last 50 lines)
 message-board logs
+
+# Show version information
+message-board --version
+message-board version
 
 # Show help
 message-board help
