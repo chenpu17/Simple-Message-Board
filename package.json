@@ -3,6 +3,9 @@
   "version": "1.0.1",
   "description": "简易留言板应用，支持markdown格式",
   "main": "server.js",
+  "bin": {
+    "message-board": "./bin/cli.js"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
