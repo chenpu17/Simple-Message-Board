@@ -134,19 +134,54 @@ function renderPagination(currentPage, totalPages, searchTerm = '', tagFilter = 
     const linkBase = 'inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-md border border-input px-3 text-xs font-medium transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
     const disabled = 'cursor-not-allowed bg-muted text-muted-foreground';
     const active = 'bg-primary text-primary-foreground shadow hover:bg-primary/90';
+    const ellipsis = '<span class="px-2 text-muted-foreground">...</span>';
 
-    const pages = Array.from({ length: totalPages }, (_, index) => {
-        const page = index + 1;
-        const isActive = page === currentPage;
-        return `<a href="${buildListPath(page, searchTerm, tagFilter)}" class="${linkBase} ${isActive ? active : ''}">${page}</a>`;
-    }).join('');
+    // 生成页码列表，使用省略号
+    const generatePageNumbers = () => {
+        const pages = [];
+        const showPages = new Set();
+
+        // 始终显示第一页和最后一页
+        showPages.add(1);
+        showPages.add(totalPages);
+
+        // 显示当前页及其前后各1页
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+            if (i >= 1 && i <= totalPages) {
+                showPages.add(i);
+            }
+        }
+
+        // 如果总页数 <= 7，显示所有页码
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) {
+                showPages.add(i);
+            }
+        }
+
+        // 转换为排序数组
+        const sortedPages = Array.from(showPages).sort((a, b) => a - b);
+
+        // 生成带省略号的页码
+        let lastPage = 0;
+        for (const page of sortedPages) {
+            if (lastPage && page - lastPage > 1) {
+                pages.push(ellipsis);
+            }
+            const isActive = page === currentPage;
+            pages.push(`<a href="${buildListPath(page, searchTerm, tagFilter)}" class="${linkBase} ${isActive ? active : ''}">${page}</a>`);
+            lastPage = page;
+        }
+
+        return pages.join('');
+    };
 
     return `
         <nav class="flex flex-col gap-3 rounded-xl border border-border bg-card/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="text-xs text-muted-foreground" data-i18n="paginationLabel" data-current="${currentPage}" data-totalpages="${totalPages}">第 ${currentPage} / ${totalPages} 页</div>
             <div class="flex flex-wrap items-center gap-2">
                 <a href="${buildListPath(prevPage, searchTerm, tagFilter)}" class="${linkBase} ${currentPage === 1 ? disabled : ''}" data-i18n="paginationPrev">上一页</a>
-                <div class="flex flex-wrap items-center gap-1">${pages}</div>
+                <div class="flex items-center gap-1">${generatePageNumbers()}</div>
                 <a href="${buildListPath(nextPage, searchTerm, tagFilter)}" class="${linkBase} ${currentPage === totalPages ? disabled : ''}" data-i18n="paginationNext">下一页</a>
             </div>
         </nav>

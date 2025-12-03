@@ -1,6 +1,6 @@
 {
   "name": "simple-message-board",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "简易留言板应用，支持markdown格式",
   "main": "server.js",
   "bin": {
