@@ -1,6 +1,7 @@
 const { MAX_MESSAGES, PAGE_SIZE } = require('../config');
 const { escapeAttribute, escapeHtml, formatDisplayTime } = require('../utils/format');
 const { buildListPath } = require('../utils/paths');
+const { version, versionDate } = require('../../package.json');
 
 function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
     const safeMarkdown = escapeAttribute(reply.content);
@@ -424,7 +425,7 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div class="space-y-2">
                             <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">shadcn-style</p>
-                            <h1 class="text-3xl font-semibold tracking-tight" data-i18n="headerTitle">简易留言板</h1>
+                            <h1 class="text-3xl font-semibold tracking-tight"><span data-i18n="headerTitle">简易留言板</span><span class="ml-2 text-base font-normal text-muted-foreground/60">v${version} (${versionDate})</span></h1>
                             <p class="text-sm text-muted-foreground" data-i18n="headerSubtitle" data-max="${MAX_MESSAGES}">支持 Markdown 留言，按 Ctrl + Enter 快速提交。最多保留 ${MAX_MESSAGES} 条。</p>
                         </div>
                         <div class="flex items-center gap-3 self-end sm:self-auto">
