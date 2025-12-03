@@ -45,7 +45,11 @@ const translations = {
         copySuccess: '已复制',
         copyFailure: '复制失败',
         deleteButton: '删除',
-        codeFallback: '代码'
+        codeFallback: '代码',
+        replyButton: '添加答复',
+        replyPlaceholder: '输入答复内容...',
+        replySubmit: '发送',
+        replyCancel: '取消'
     },
     en: {
         headerTitle: 'Simple Message Board',
@@ -84,7 +88,11 @@ const translations = {
         copySuccess: 'Copied',
         copyFailure: 'Copy failed',
         deleteButton: 'Delete',
-        codeFallback: 'Code'
+        codeFallback: 'Code',
+        replyButton: 'Add Reply',
+        replyPlaceholder: 'Enter your reply...',
+        replySubmit: 'Send',
+        replyCancel: 'Cancel'
     }
 };
 
@@ -414,6 +422,9 @@ function initializeMarkdownRendering() {
     }
 
     enhanceCodeBlocks();
+
+    // 应用搜索高亮
+    applySearchHighlight();
 }
 
 function fallbackCopy(text, onComplete) {
@@ -578,10 +589,11 @@ function initializeAutoRefresh() {
     });
 
     const POLL_INTERVAL = 5000;
+    const pageSize = Number(document.body?.dataset.pageSize) || 20;
 
     const pollNewMessages = async () => {
         try {
-            const response = await fetch('/api/messages?since_id=' + latestId + '&limit=50');
+            const response = await fetch('/api/messages?since_id=' + latestId + '&limit=' + pageSize);
             if (!response.ok) {
                 return;
             }
@@ -595,7 +607,7 @@ function initializeAutoRefresh() {
                 if (msg.id > latestId) {
                     latestId = msg.id;
                 }
-                insertNewMessage(msg, messageList);
+                insertNewMessage(msg, messageList, pageSize);
             });
 
             updateStatsCounter(data.messages.length);
@@ -607,7 +619,86 @@ function initializeAutoRefresh() {
     setInterval(pollNewMessages, POLL_INTERVAL);
 }
 
-function insertNewMessage(message, listElement) {
+function renderReplyItemClient(reply, messageId, currentPage, searchTerm, tagFilter) {
+    const safeMarkdown = escapeAttributeClient(reply.content);
+    const fallbackHtml = escapeHtmlClient(reply.content);
+    const displayTime = formatDisplayTimeClient(reply.created_at);
+    const searchHidden = searchTerm ? '<input type="hidden" name="q" value="' + escapeAttributeClient(searchTerm) + '">' : '';
+    const tagHidden = tagFilter ? '<input type="hidden" name="tag" value="' + escapeAttributeClient(tagFilter) + '">' : '';
+
+    return '<div class="reply-item group/item flex gap-3 py-3 first:pt-0 last:pb-0" data-reply-id="' + reply.id + '">' +
+        '<div class="flex-shrink-0 mt-1">' +
+        '<div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>' +
+        '</div>' +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+        '<p class="text-[10px] font-medium text-muted-foreground mb-1">' + displayTime + '</p>' +
+        '<div class="reply-content prose prose-slate max-w-none text-xs dark:prose-invert" data-markdown="' + safeMarkdown + '">' + fallbackHtml + '</div>' +
+        '</div>' +
+        '<form action="/delete-reply" method="post" class="flex-shrink-0 self-start opacity-0 group-hover/item:opacity-100 transition-opacity">' +
+        '<input type="hidden" name="id" value="' + reply.id + '">' +
+        '<input type="hidden" name="page" value="' + currentPage + '">' +
+        searchHidden +
+        tagHidden +
+        '<button type="submit" class="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition" data-i18n-title="deleteButton">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
+        '</button>' +
+        '</form>' +
+        '</div>';
+}
+
+function renderRepliesSectionClient(replies = [], messageId, currentPage, searchTerm, tagFilter) {
+    const repliesHtml = replies.length > 0
+        ? '<div class="replies-list divide-y divide-border/50">' +
+        replies.map((reply) => renderReplyItemClient(reply, messageId, currentPage, searchTerm, tagFilter)).join('') +
+        '</div>'
+        : '';
+
+    const replyCount = replies.length > 0 ? '<span class="text-[10px] text-muted-foreground/70">(' + replies.length + ')</span>' : '';
+    const searchHidden = searchTerm ? '<input type="hidden" name="q" value="' + escapeAttributeClient(searchTerm) + '">' : '';
+    const tagHidden = tagFilter ? '<input type="hidden" name="tag" value="' + escapeAttributeClient(tagFilter) + '">' : '';
+
+    return '<div class="replies-section border-t border-border/50 mx-5 px-0 pb-5 pt-4">' +
+        repliesHtml +
+        '<div class="reply-form-container ' + (replies.length > 0 ? 'mt-3' : '') + '">' +
+        '<button type="button" class="reply-toggle-btn inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition" data-message-id="' + messageId + '">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>' +
+        '<span data-i18n="replyButton">' + t('replyButton') + '</span>' +
+        replyCount +
+        '</button>' +
+        '<form action="/reply" method="post" class="reply-form hidden mt-3" data-message-id="' + messageId + '">' +
+        '<input type="hidden" name="message_id" value="' + messageId + '">' +
+        '<input type="hidden" name="page" value="' + currentPage + '">' +
+        searchHidden +
+        tagHidden +
+        '<div class="flex gap-2">' +
+        '<textarea name="content" rows="2" required placeholder="' + t('replyPlaceholder') + '" class="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-xs leading-5 text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40 resize-none" data-i18n-placeholder="replyPlaceholder"></textarea>' +
+        '<div class="flex flex-col gap-1">' +
+        '<button type="submit" class="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow transition hover:bg-primary/90">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>' +
+        '</button>' +
+        '<button type="button" class="reply-cancel-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium text-muted-foreground shadow-sm transition hover:bg-accent hover:text-accent-foreground">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>' +
+        '</button>' +
+        '</div>' +
+        '</div>' +
+        '</form>' +
+        '</div>' +
+        '</div>';
+}
+
+function trimMessageList(listElement, pageSize) {
+    const maxItems = Number(pageSize) || Number(document.body?.dataset.pageSize) || 20;
+    const items = listElement.querySelectorAll('li[data-message-id]');
+    if (items.length <= maxItems) {
+        return;
+    }
+    const toRemove = Array.from(items).slice(maxItems);
+    toRemove.forEach((item) => item.remove());
+}
+
+function insertNewMessage(message, listElement, pageSize = Number(document.body?.dataset.pageSize) || 20) {
     const existingItem = listElement.querySelector('li[data-message-id="' + message.id + '"]');
     if (existingItem) {
         return;
@@ -624,6 +715,10 @@ function insertNewMessage(message, listElement) {
 
     const urlParams = new URLSearchParams(window.location.search);
     const currentPage = parseInt(urlParams.get('page'), 10) || 1;
+    const searchTerm = getSearchTerm();
+    const tagFilter = urlParams.get('tag') || document.body?.dataset.tagFilter || '';
+    const searchHidden = searchTerm ? '<input type="hidden" name="q" value="' + escapeAttributeClient(searchTerm) + '">' : '';
+    const tagHidden = tagFilter ? '<input type="hidden" name="tag" value="' + escapeAttributeClient(tagFilter) + '">' : '';
 
     // 渲染标签
     let tagsHtml = '';
@@ -641,8 +736,16 @@ function insertNewMessage(message, listElement) {
         tagsHtml += '</div>';
     }
 
+    const repliesSection = renderRepliesSectionClient(
+        Array.isArray(message.replies) ? message.replies : [],
+        message.id,
+        currentPage,
+        searchTerm,
+        tagFilter
+    );
+
     const li = document.createElement('li');
-    li.className = 'rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md';
+    li.className = 'group/reply rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md';
     li.dataset.messageId = message.id;
     li.style.animation = 'slideIn 0.35s ease-out';
 
@@ -655,12 +758,15 @@ function insertNewMessage(message, listElement) {
         '<form action="/delete" method="post" class="flex shrink-0 items-center justify-end sm:self-start">' +
         '<input type="hidden" name="id" value="' + message.id + '">' +
         '<input type="hidden" name="page" value="' + currentPage + '">' +
+        searchHidden +
+        tagHidden +
         '<button type="submit" class="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-destructive/40 bg-destructive/10 px-3 text-xs font-medium text-destructive shadow-sm transition hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-i18n-title="deleteButton">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
         '<span data-i18n="deleteButton">' + t('deleteButton') + '</span>' +
         '</button>' +
         '</form>' +
-        '</div>';
+        '</div>' +
+        repliesSection;
 
     listElement.insertBefore(li, listElement.firstChild);
 
@@ -688,6 +794,9 @@ function insertNewMessage(message, listElement) {
     if (tagsContainer) {
         applyResponsiveTags(tagsContainer);
     }
+
+    initializeReplyForms(li);
+    trimMessageList(listElement, pageSize);
 }
 
 function escapeAttributeClient(value = '') {
@@ -875,12 +984,213 @@ window.addEventListener('resize', () => {
     }, 200);
 });
 
+/**
+ * 获取当前搜索词
+ */
+function getSearchTerm() {
+    const body = document.body;
+    const term = body.dataset.searchTerm || '';
+    // 解码 HTML 实体
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = term;
+    return textarea.value.trim();
+}
+
+/**
+ * 转义正则表达式特殊字符
+ */
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 高亮文本节点中的搜索词
+ */
+function highlightTextNode(textNode, searchTerm) {
+    const text = textNode.nodeValue;
+    const regex = new RegExp('(' + escapeRegExp(searchTerm) + ')', 'gi');
+
+    if (!regex.test(text)) {
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    const parts = text.split(regex);
+
+    parts.forEach((part) => {
+        if (part.toLowerCase() === searchTerm.toLowerCase()) {
+            const mark = document.createElement('mark');
+            mark.className = 'search-highlight';
+            mark.textContent = part;
+            fragment.appendChild(mark);
+        } else if (part) {
+            fragment.appendChild(document.createTextNode(part));
+        }
+    });
+
+    textNode.parentNode.replaceChild(fragment, textNode);
+}
+
+/**
+ * 递归遍历 DOM 节点，对文本节点应用高亮
+ * 跳过 code, pre, script, style 等标签
+ */
+function highlightElement(element, searchTerm) {
+    const skipTags = new Set(['CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT']);
+
+    const walker = document.createTreeWalker(
+        element,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: function(node) {
+                // 跳过空白文本节点
+                if (!node.nodeValue.trim()) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                // 检查父节点是否在跳过列表中
+                let parent = node.parentNode;
+                while (parent && parent !== element) {
+                    if (skipTags.has(parent.tagName)) {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                    parent = parent.parentNode;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        }
+    );
+
+    // 收集所有需要处理的文本节点（避免在遍历时修改 DOM）
+    const textNodes = [];
+    while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+    }
+
+    // 对每个文本节点应用高亮
+    textNodes.forEach((node) => {
+        highlightTextNode(node, searchTerm);
+    });
+}
+
+/**
+ * 应用搜索高亮到所有留言内容
+ */
+function applySearchHighlight() {
+    const searchTerm = getSearchTerm();
+    if (!searchTerm) {
+        return;
+    }
+
+    const messageContents = document.querySelectorAll('.message-content');
+    messageContents.forEach((content) => {
+        highlightElement(content, searchTerm);
+    });
+}
+
+/**
+ * 初始化答复功能
+ */
+function initializeReplyForms(root = document) {
+    const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+
+    // 答复按钮点击显示/隐藏表单
+    scope.querySelectorAll('.reply-toggle-btn').forEach((btn) => {
+        if (btn.dataset.replyToggleBound === 'true') {
+            return;
+        }
+        btn.dataset.replyToggleBound = 'true';
+        btn.addEventListener('click', () => {
+            const messageId = btn.dataset.messageId;
+            const container = btn.closest('li[data-message-id]') || document;
+            const form = container.querySelector(`.reply-form[data-message-id="${messageId}"]`);
+            if (form) {
+                const isHidden = form.classList.contains('hidden');
+                form.classList.toggle('hidden', !isHidden);
+                if (isHidden) {
+                    const textarea = form.querySelector('textarea');
+                    if (textarea) {
+                        textarea.focus();
+                    }
+                }
+            }
+        });
+    });
+
+    // 取消按钮点击隐藏表单
+    scope.querySelectorAll('.reply-cancel-btn').forEach((btn) => {
+        if (btn.dataset.replyCancelBound === 'true') {
+            return;
+        }
+        btn.dataset.replyCancelBound = 'true';
+        btn.addEventListener('click', () => {
+            const form = btn.closest('.reply-form');
+            if (form) {
+                form.classList.add('hidden');
+                const textarea = form.querySelector('textarea');
+                if (textarea) {
+                    textarea.value = '';
+                }
+            }
+        });
+    });
+
+    // 答复表单 Ctrl+Enter 提交
+    scope.querySelectorAll('.reply-form textarea').forEach((textarea) => {
+        if (textarea.dataset.replyKeydownBound === 'true') {
+            return;
+        }
+        textarea.dataset.replyKeydownBound = 'true';
+        textarea.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && event.ctrlKey) {
+                event.preventDefault();
+                textarea.form?.submit();
+            }
+        });
+    });
+
+    // 对答复内容应用 Markdown 渲染
+    renderReplyMarkdown(scope);
+}
+
+/**
+ * 渲染答复内容的 Markdown
+ */
+function renderReplyMarkdown(root = document) {
+    const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+    const replyContents = scope.querySelectorAll('.reply-content[data-markdown]');
+    replyContents.forEach((element) => {
+        const markdownText = element.getAttribute('data-markdown') || '';
+        if (window.marked) {
+            const rawHtml = marked.parse(markdownText);
+            const safeHtml = window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml;
+            element.innerHTML = safeHtml;
+        } else {
+            element.textContent = markdownText;
+        }
+    });
+
+    // 高亮代码块
+    if (window.hljs) {
+        const codeBlocks = scope.querySelectorAll('.reply-content pre code');
+        codeBlocks.forEach((block) => window.hljs.highlightElement(block));
+    }
+
+    // 应用搜索高亮到答复内容
+    const searchTerm = getSearchTerm();
+    if (searchTerm) {
+        replyContents.forEach((content) => {
+            highlightElement(content, searchTerm);
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeLanguage();
     initializeTheme();
     initializeMarkdownRendering();
     initializeAutoRefresh();
     initializeResponsiveTags();
+    initializeReplyForms();
 
     const textarea = document.getElementById('message');
     if (textarea) {

@@ -57,6 +57,22 @@ function initDb() {
             CREATE INDEX IF NOT EXISTS idx_message_tags_tag
             ON message_tags (tag_id)
         `);
+
+        // 答复表
+        db.run(`
+            CREATE TABLE IF NOT EXISTS replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+            )
+        `);
+
+        db.run(`
+            CREATE INDEX IF NOT EXISTS idx_replies_message_id
+            ON replies (message_id)
+        `);
     });
 }
 

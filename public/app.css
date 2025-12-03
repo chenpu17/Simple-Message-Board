@@ -41,3 +41,16 @@ body {
         transform: translateY(0);
     }
 }
+
+/* 搜索高亮样式 */
+.search-highlight {
+    background-color: rgba(250, 204, 21, 0.4);
+    color: inherit;
+    padding: 0.1em 0.2em;
+    border-radius: 0.2em;
+    font-weight: 500;
+}
+
+.dark .search-highlight {
+    background-color: rgba(250, 204, 21, 0.3);
+}

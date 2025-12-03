@@ -2,6 +2,7 @@ const { dbAll, dbGet, dbRun } = require('../db');
 const { PAGE_SIZE, MAX_MESSAGES, MAX_PAGES } = require('../config');
 const { buildSearchClause } = require('../utils/search');
 const { addTagsToMessage, getMessageTagsBatch, removeMessageTags } = require('./tagService');
+const { getRepliesBatch } = require('./replyService');
 
 async function listMessages(searchRaw, requestedPage, tagFilter) {
     const { clause: searchClause, params: searchParams, term: searchTerm } = buildSearchClause(searchRaw || '');
@@ -47,10 +48,14 @@ async function listMessages(searchRaw, requestedPage, tagFilter) {
     const messageIds = messages.map(m => m.id);
     const tagsMap = await getMessageTagsBatch(messageIds);
 
-    // 将标签添加到留言对象中
+    // 批量获取所有留言的答复
+    const repliesMap = await getRepliesBatch(messageIds);
+
+    // 将标签和答复添加到留言对象中
     const messagesWithTags = messages.map(msg => ({
         ...msg,
-        tags: tagsMap[msg.id] || []
+        tags: tagsMap[msg.id] || [],
+        replies: repliesMap[msg.id] || []
     }));
 
     return {
@@ -129,10 +134,14 @@ async function fetchMessagesSince(sinceIdRaw, limitRaw) {
     const messageIds = messages.map(m => m.id);
     const tagsMap = await getMessageTagsBatch(messageIds);
 
-    // 将标签添加到留言对象中
+    // 获取答复信息
+    const repliesMap = await getRepliesBatch(messageIds);
+
+    // 将标签和答复添加到留言对象中
     return messages.map(msg => ({
         ...msg,
-        tags: tagsMap[msg.id] || []
+        tags: tagsMap[msg.id] || [],
+        replies: repliesMap[msg.id] || []
     }));
 }
 

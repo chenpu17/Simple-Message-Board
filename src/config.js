@@ -1,7 +1,7 @@
 const path = require('path');
 const os = require('os');
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const MAX_MESSAGES = 1024;
 const MAX_PAGES = Math.ceil(MAX_MESSAGES / PAGE_SIZE);
 const PORT = process.env.PORT ? Number(process.env.PORT) : 13478;

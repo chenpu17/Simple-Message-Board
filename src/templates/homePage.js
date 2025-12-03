@@ -1,8 +1,80 @@
-const { MAX_MESSAGES } = require('../config');
+const { MAX_MESSAGES, PAGE_SIZE } = require('../config');
 const { escapeAttribute, escapeHtml, formatDisplayTime } = require('../utils/format');
 const { buildListPath } = require('../utils/paths');
 
-function renderMessageItem({ id, content, created_at, tags }, currentPage, searchTerm, tagFilter) {
+function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
+    const safeMarkdown = escapeAttribute(reply.content);
+    const fallbackHtml = escapeHtml(reply.content);
+    const displayTime = formatDisplayTime(reply.created_at);
+    const searchHidden = searchTerm ? `<input type="hidden" name="q" value="${escapeAttribute(searchTerm)}">` : '';
+    const tagHidden = tagFilter ? `<input type="hidden" name="tag" value="${escapeAttribute(tagFilter)}">` : '';
+
+    return `
+        <div class="reply-item group/item flex gap-3 py-3 first:pt-0 last:pb-0" data-reply-id="${reply.id}">
+            <div class="flex-shrink-0 mt-1">
+                <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+                </div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-medium text-muted-foreground mb-1">${displayTime}</p>
+                <div class="reply-content prose prose-slate max-w-none text-xs dark:prose-invert" data-markdown="${safeMarkdown}">${fallbackHtml}</div>
+            </div>
+            <form action="/delete-reply" method="post" class="flex-shrink-0 self-start opacity-0 group-hover/item:opacity-100 transition-opacity">
+                <input type="hidden" name="id" value="${reply.id}">
+                <input type="hidden" name="page" value="${currentPage}">
+                ${searchHidden}
+                ${tagHidden}
+                <button type="submit" class="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition" data-i18n-title="deleteButton">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+            </form>
+        </div>
+    `;
+}
+
+function renderRepliesSection(replies, messageId, currentPage, searchTerm, tagFilter) {
+    const searchHidden = searchTerm ? `<input type="hidden" name="q" value="${escapeAttribute(searchTerm)}">` : '';
+    const tagHidden = tagFilter ? `<input type="hidden" name="tag" value="${escapeAttribute(tagFilter)}">` : '';
+
+    const repliesHtml = replies && replies.length > 0
+        ? `<div class="replies-list divide-y divide-border/50">
+            ${replies.map(reply => renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter)).join('')}
+           </div>`
+        : '';
+
+    return `
+        <div class="replies-section border-t border-border/50 mx-5 px-0 pb-5 pt-4">
+            ${repliesHtml}
+            <div class="reply-form-container ${replies && replies.length > 0 ? 'mt-3' : ''}">
+                <button type="button" class="reply-toggle-btn inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition" data-message-id="${messageId}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+                    <span data-i18n="replyButton">添加答复</span>
+                    ${replies && replies.length > 0 ? `<span class="text-[10px] text-muted-foreground/70">(${replies.length})</span>` : ''}
+                </button>
+                <form action="/reply" method="post" class="reply-form hidden mt-3" data-message-id="${messageId}">
+                    <input type="hidden" name="message_id" value="${messageId}">
+                    <input type="hidden" name="page" value="${currentPage}">
+                    ${searchHidden}
+                    ${tagHidden}
+                    <div class="flex gap-2">
+                        <textarea name="content" rows="2" required placeholder="输入答复内容..." class="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-xs leading-5 text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40 resize-none" data-i18n-placeholder="replyPlaceholder"></textarea>
+                        <div class="flex flex-col gap-1">
+                            <button type="submit" class="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground shadow transition hover:bg-primary/90">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                            </button>
+                            <button type="button" class="reply-cancel-btn inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium text-muted-foreground shadow-sm transition hover:bg-accent hover:text-accent-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+function renderMessageItem({ id, content, created_at, tags, replies }, currentPage, searchTerm, tagFilter) {
     const safeMarkdown = escapeAttribute(content);
     const fallbackHtml = escapeHtml(content);
     const displayTime = formatDisplayTime(created_at);
@@ -24,8 +96,11 @@ function renderMessageItem({ id, content, created_at, tags }, currentPage, searc
            </div>`
         : '';
 
+    // 渲染答复区域
+    const repliesSection = renderRepliesSection(replies, id, currentPage, searchTerm, tagFilter);
+
     return `
-        <li class="rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md" data-message-id="${id}">
+        <li class="group/reply rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md" data-message-id="${id}">
             <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div class="flex-1 min-w-0">
                     <p class="text-xs font-medium text-muted-foreground mb-2">${displayTime}</p>
@@ -43,6 +118,7 @@ function renderMessageItem({ id, content, created_at, tags }, currentPage, searc
                     </button>
                 </form>
             </div>
+            ${repliesSection}
         </li>
     `;
 }
@@ -301,7 +377,7 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="/static/app.css">
 </head>
-<body class="min-h-screen bg-background text-foreground">
+<body class="min-h-screen bg-background text-foreground" data-search-term="${searchValueAttr}" data-page-size="${PAGE_SIZE}" data-tag-filter="${tagFilter ? escapeAttribute(tagFilter) : ''}">
     ${tagSidebar}
     <div class="relative isolate">
         <div class="pointer-events-none absolute inset-x-0 top-[-14rem] -z-10 transform-gpu overflow-hidden blur-3xl" aria-hidden="true">

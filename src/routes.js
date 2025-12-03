@@ -4,6 +4,7 @@ const { sendHtml, sendJson, redirect, notFound, serveStatic } = require('./utils
 const { readBody } = require('./utils/body');
 const { listMessages, createMessage, deleteMessage, fetchMessagesSince, getTotalCount, getFilteredCount } = require('./services/messageService');
 const { getAllTags } = require('./services/tagService');
+const { createReply, deleteReply } = require('./services/replyService');
 const { renderHomePage } = require('./templates/homePage');
 const { buildListPath } = require('./utils/paths');
 const { MAX_PAGES, PAGE_SIZE } = require('./config');
@@ -41,6 +42,16 @@ async function routeRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/api/tags') {
         await handleApiTags(res);
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/reply') {
+        await handleReply(req, res);
+        return;
+    }
+
+    if (req.method === 'POST' && pathname === '/delete-reply') {
+        await handleDeleteReply(req, res);
         return;
     }
 
@@ -110,6 +121,38 @@ async function handleApiTags(res) {
     sendJson(res, { tags }, 200, {
         'Cache-Control': 'no-cache, no-store, must-revalidate'
     });
+}
+
+async function handleReply(req, res) {
+    const body = await readBody(req);
+    const { message_id, content, page, q, tag } = querystring.parse(body);
+
+    await createReply(message_id, content);
+
+    const searchTerm = typeof q === 'string' ? q.trim() : '';
+    const tagFilter = typeof tag === 'string' ? tag.trim() : '';
+    let targetPage = Number.parseInt(page, 10);
+    if (Number.isNaN(targetPage) || targetPage < 1) {
+        targetPage = 1;
+    }
+
+    redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
+}
+
+async function handleDeleteReply(req, res) {
+    const body = await readBody(req);
+    const { id, page, q, tag } = querystring.parse(body);
+
+    await deleteReply(id);
+
+    const searchTerm = typeof q === 'string' ? q.trim() : '';
+    const tagFilter = typeof tag === 'string' ? tag.trim() : '';
+    let targetPage = Number.parseInt(page, 10);
+    if (Number.isNaN(targetPage) || targetPage < 1) {
+        targetPage = 1;
+    }
+
+    redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
 }
 
 module.exports = { routeRequest };
