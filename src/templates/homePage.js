@@ -19,6 +19,41 @@ function getSafeColor(color) {
     return '#888888';
 }
 
+function getAvatarGradient(id) {
+    const gradients = [
+        'from-pink-500 to-rose-500',
+        'from-orange-400 to-red-500',
+        'from-amber-400 to-orange-500',
+        'from-lime-400 to-emerald-500',
+        'from-green-400 to-emerald-600',
+        'from-teal-400 to-cyan-500',
+        'from-sky-400 to-blue-500',
+        'from-indigo-400 to-purple-500',
+        'from-violet-400 to-fuchsia-500',
+        'from-purple-400 to-pink-500',
+        'from-slate-400 to-zinc-500'
+    ];
+    let hash = 0;
+    const str = String(id);
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return gradients[Math.abs(hash) % gradients.length];
+}
+
+function renderAvatar(id, size = 'sm') {
+    const gradient = getAvatarGradient(id);
+    const sizeClasses = size === 'lg' ? 'w-10 h-10 text-xs' : 'w-6 h-6 text-[9px]';
+    // Use the ID itself for the "avatar text" since we don't have usernames
+    const label = '#' + String(id).slice(-2);
+    
+    return `
+        <div class="${sizeClasses} rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold shadow-sm select-none ring-2 ring-background/50">
+            ${label}
+        </div>
+    `;
+}
+
 function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
     const safeMarkdown = escapeAttribute(reply.content);
     const fallbackHtml = escapeHtml(reply.content);
@@ -29,9 +64,7 @@ function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
     return `
         <div class="reply-item group/item flex gap-3 py-3 first:pt-0 last:pb-0" data-reply-id="${reply.id}">
             <div class="flex-shrink-0 mt-1">
-                <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
-                </div>
+                ${renderAvatar(reply.id, 'sm')}
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-[10px] font-medium text-muted-foreground mb-1" data-timestamp="${reply.created_at}">${displayTime}</p>
@@ -100,13 +133,13 @@ function renderMessageItem({ id, content, created_at, tags, replies }, currentPa
 
     // 渲染标签 - 传递所有标签到前端，由前端根据屏幕宽度自适应显示
     const tagsHtml = tags && tags.length > 0
-        ? `<div class="message-tags flex flex-wrap gap-2 mt-3" data-all-tags='${escapeAttribute(JSON.stringify(tags))}'>
+        ? `<div class="message-tags flex flex-wrap gap-2 mt-4" data-all-tags='${escapeAttribute(JSON.stringify(tags))}'>
             ${tags.map(tag => `
                 <a href="/?tag=${tag.id}"
-                   class="tag-item group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95"
-                   style="background-color: ${getSafeColor(tag.color)}10; color: ${getSafeColor(tag.color)}; border: 1px solid ${getSafeColor(tag.color)}20;"
+                   class="tag-item group inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 hover:shadow-sm active:scale-95"
+                   style="background-color: ${getSafeColor(tag.color)}15; color: ${getSafeColor(tag.color)};"
                    data-usage-count="${tag.usage_count || 0}">
-                    <span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>
+                    <span class="opacity-40 transition-opacity group-hover:opacity-60">#</span>
                     ${escapeHtml(tag.name)}
                 </a>
             `).join('')}
@@ -117,21 +150,29 @@ function renderMessageItem({ id, content, created_at, tags, replies }, currentPa
     const repliesSection = renderRepliesSection(replies, id, currentPage, searchTerm, tagFilter);
 
     return `
-        <li class="group/reply rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md" data-message-id="${id}">
-            <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <li class="message-item glass-card-hover group/reply rounded-xl text-card-foreground" data-message-id="${id}">
+            <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:gap-4">
+                <div class="hidden sm:block flex-shrink-0 mt-1">
+                    ${renderAvatar(id, 'lg')}
+                </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-muted-foreground mb-2" data-timestamp="${created_at}">${displayTime}</p>
-                    <div class="message-content prose prose-slate max-w-none text-sm dark:prose-invert" data-markdown="${safeMarkdown}">${fallbackHtml}</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="sm:hidden flex-shrink-0">
+                            ${renderAvatar(id, 'sm')}
+                        </div>
+                        <p class="text-xs font-medium text-muted-foreground/60" data-timestamp="${created_at}">${displayTime}</p>
+                    </div>
+                    
+                    <div class="message-content prose prose-slate prose-sm max-w-none dark:prose-invert leading-7 text-foreground/90" data-markdown="${safeMarkdown}">${fallbackHtml}</div>
                     ${tagsHtml}
                 </div>
-                <form action="/delete" method="post" class="flex shrink-0 items-center justify-end sm:self-start">
+                <form action="/delete" method="post" class="flex shrink-0 items-center justify-end sm:self-start sm:ml-auto">
                     <input type="hidden" name="id" value="${id}">
                     <input type="hidden" name="page" value="${currentPage}">
                     ${searchHidden}
                     ${tagHidden}
-                    <button type="submit" class="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-destructive/40 bg-destructive/10 px-3 text-xs font-medium text-destructive shadow-sm transition hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-i18n-title="deleteButton">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        <span data-i18n="deleteButton">删除</span>
+                    <button type="submit" class="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all active:scale-90 opacity-0 group-hover/reply:opacity-100 focus:opacity-100" data-i18n-title="deleteButton">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                     </button>
                 </form>
             </div>
@@ -210,13 +251,20 @@ function renderList(messages, searchTerm, currentPage, tagFilter) {
         const searchValueAttr = escapeAttribute(searchTerm);
         const searchValueHtml = escapeHtml(searchTerm);
         return `
-            <li class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center transition-all hover:bg-card/80">
-                <div class="rounded-full bg-muted p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/60"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <li class="animate-fade-in flex flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-border bg-gradient-to-b from-card/80 to-card/40 p-16 text-center">
+                <div class="relative">
+                    <div class="absolute inset-0 animate-pulse rounded-full bg-primary/10 blur-xl"></div>
+                    <div class="relative rounded-full bg-gradient-to-br from-muted to-muted/50 p-6 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/50">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.3-4.3"/>
+                            <path d="M8 8l6 6" class="text-destructive/50"/>
+                        </svg>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <p class="text-sm font-medium text-foreground" data-i18n="emptySearch" data-term="${searchValueAttr}">没有找到包含 "${searchValueHtml}" 的留言。</p>
-                    <p class="text-xs text-muted-foreground">试试其他关键字？</p>
+                <div class="space-y-2">
+                    <p class="text-base font-semibold text-foreground" data-i18n="emptySearch" data-term="${searchValueAttr}">没有找到包含 "${searchValueHtml}" 的留言</p>
+                    <p class="text-sm text-muted-foreground">试试其他关键字，或者清除搜索条件</p>
                 </div>
             </li>
         `;
@@ -224,12 +272,21 @@ function renderList(messages, searchTerm, currentPage, tagFilter) {
 
     if (messages.length === 0) {
         return `
-            <li class="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center transition-all hover:bg-card/80">
-                <div class="rounded-full bg-muted p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/60"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <li class="animate-fade-in flex flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-border bg-gradient-to-b from-card/80 to-card/40 p-16 text-center">
+                <div class="relative">
+                    <div class="absolute inset-0 animate-pulse rounded-full bg-primary/10 blur-xl"></div>
+                    <div class="relative rounded-full bg-gradient-to-br from-muted to-muted/50 p-6 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/50">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            <path d="M8 10h.01"/>
+                            <path d="M12 10h.01"/>
+                            <path d="M16 10h.01"/>
+                        </svg>
+                    </div>
                 </div>
-                <div class="space-y-1">
-                    <p class="text-sm font-medium text-foreground" data-i18n="emptyDefault">还没有留言，快来留下第一条消息吧～</p>
+                <div class="space-y-2">
+                    <p class="text-base font-semibold text-foreground" data-i18n="emptyDefault">还没有留言，快来留下第一条消息吧～</p>
+                    <p class="text-sm text-muted-foreground">在上方输入框中写下你的想法</p>
                 </div>
             </li>
         `;
@@ -321,6 +378,8 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
                     document.documentElement.classList.add('dark');
+                } else if (storedTheme === 'cyberpunk') {
+                    document.documentElement.classList.add('cyberpunk');
                 }
             } catch (error) {
                 // ignore
@@ -424,6 +483,68 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
             --destructive-foreground: 210 40% 98%;
             --ring: 224.3 76.3% 48%;
         }
+
+        html.cyberpunk {
+            color-scheme: dark;
+            --background: 280 60% 5%;
+            --foreground: 180 100% 50%; /* Neon Cyan */
+            --muted: 280 40% 15%;
+            --muted-foreground: 300 100% 70%; /* Neon Pinkish */
+            --popover: 280 60% 5%;
+            --popover-foreground: 180 100% 50%;
+            --border: 320 100% 50%; /* Neon Pink Border */
+            --input: 280 40% 20%;
+            --card: 280 50% 8%;
+            --card-foreground: 180 100% 50%;
+            --primary: 320 100% 50%; /* Neon Pink */
+            --primary-foreground: 280 60% 5%;
+            --secondary: 260 100% 50%; /* Neon Purple */
+            --secondary-foreground: 210 40% 98%;
+            --accent: 60 100% 50%; /* Neon Yellow */
+            --accent-foreground: 280 60% 5%;
+            --destructive: 0 100% 50%;
+            --destructive-foreground: 210 40% 98%;
+            --ring: 180 100% 50%;
+            --radius: 0px; /* Sharp corners */
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        /* Cyberpunk specific visual overrides */
+        .cyberpunk .glass-card-hover,
+        .cyberpunk .glass-card,
+        .cyberpunk input,
+        .cyberpunk textarea,
+        .cyberpunk button,
+        .cyberpunk .rounded-xl,
+        .cyberpunk .rounded-lg,
+        .cyberpunk .rounded-md,
+        .cyberpunk .rounded-full {
+            border-radius: 0 !important;
+        }
+
+        .cyberpunk body {
+            background-image: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            background-color: hsl(280, 60%, 5%);
+        }
+
+        /* Hide the soft gradients in cyberpunk mode to keep it crisp */
+        .cyberpunk .blur-3xl {
+            display: none;
+        }
+        
+        .cyberpunk .glass-card-hover {
+            border: 1px solid hsl(var(--border));
+            box-shadow: 0 0 10px hsl(var(--border) / 0.3), inset 0 0 20px hsl(var(--border) / 0.1);
+            background: rgba(10, 10, 15, 0.8);
+        }
+
+        .cyberpunk .glass-card-hover:hover {
+            box-shadow: 0 0 15px hsl(var(--border) / 0.6), inset 0 0 30px hsl(var(--border) / 0.2);
+            transform: translate(-2px, -2px);
+        }
     </style>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600|jetbrains-mono:400,500" rel="stylesheet" />
@@ -442,7 +563,7 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div class="space-y-2">
                             <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">shadcn-style</p>
-                            <h1 class="text-3xl font-semibold tracking-tight"><span data-i18n="headerTitle">简易留言板</span><span class="ml-2 text-base font-normal text-muted-foreground/60">v${version} (${versionDate})</span></h1>
+                            <h1 class="text-3xl font-bold tracking-tight"><span class="bg-gradient-to-r from-primary to-violet-600 bg-clip-text text-transparent" data-i18n="headerTitle">简易留言板</span><span class="ml-2 text-base font-normal text-muted-foreground/60">v${version} (${versionDate})</span></h1>
                             <p class="text-sm text-muted-foreground" data-i18n="headerSubtitle" data-max="${MAX_MESSAGES}">支持 Markdown 留言，按 Ctrl + Enter 快速提交。最多保留 ${MAX_MESSAGES} 条。</p>
                         </div>
                         <div class="flex items-center gap-3 self-end sm:self-auto">
@@ -478,13 +599,13 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                             ${renderToolbarButton('code-block', 'toolbarCodeBlock', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 10 2 2-2 2"/><path d="m15 14-2-2 2-2"/></svg>')}
                             ${renderToolbarButton('link', 'toolbarLink', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>')}
                         </div>
-                        <textarea id="message" name="message" rows="5" required placeholder="试试使用 **Markdown** 语法，支持代码块、列表等格式。" class="block w-full rounded-b-lg border border-t-0 border-input bg-background px-4 py-3 text-sm leading-6 text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/40" data-i18n-placeholder="textareaPlaceholder"></textarea>
+                        <textarea id="message" name="message" rows="5" required placeholder="试试使用 **Markdown** 语法，支持代码块、列表等格式。" class="textarea-glow block w-full rounded-b-lg border border-t-0 border-input bg-background px-4 py-3 text-sm leading-6 text-foreground shadow-sm" data-i18n-placeholder="textareaPlaceholder"></textarea>
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
                             <div class="flex flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40 transition-all hover:border-ring/50">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-50"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
                                 <input type="text" name="tags" placeholder="添加标签（用逗号或空格分隔）" class="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/80 focus:outline-none" data-i18n-placeholder="tagsPlaceholder">
                             </div>
-                            <button type="submit" class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground shadow transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <button type="submit" class="btn-glow inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground shadow transition-all hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                                 <span data-i18n="submitButton">提交留言</span>
                             </button>

@@ -82,9 +82,17 @@ function initDb() {
             )
         `);
 
-        // 初始化历史总留言数（如果不存在）
+        // 初始化历史总留言数（如果不存在，使用当前消息数）
         db.run(`
-            INSERT OR IGNORE INTO stats (key, value) VALUES ('total_messages_ever', 0)
+            INSERT OR IGNORE INTO stats (key, value)
+            SELECT 'total_messages_ever', COUNT(*) FROM messages
+        `);
+
+        // 确保历史总数不小于当前消息数
+        db.run(`
+            UPDATE stats SET value = (SELECT COUNT(*) FROM messages)
+            WHERE key = 'total_messages_ever'
+            AND value < (SELECT COUNT(*) FROM messages)
         `);
 
         // 每日统计表 - 永久保存历史数据

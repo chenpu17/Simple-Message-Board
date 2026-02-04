@@ -38,6 +38,7 @@ const translations = {
         languageEn: 'English',
         themeLight: '亮色',
         themeDark: '暗色',
+        themeCyberpunk: '霓虹',
         paginationLabel: function ({ current, totalpages }) { return '第 ' + current + ' / ' + totalpages + ' 页'; },
         paginationPrev: '上一页',
         paginationNext: '下一页',
@@ -69,14 +70,32 @@ const translations = {
         shareLink: '复制链接',
         shareCopied: '链接已复制',
         filterTags: '标签筛选',
-        clearFilter: '清除筛选'
+        clearFilter: '清除筛选',
+        // Dashboard translations
+        dashboardTitle: '数据看板',
+        dashboardSubtitle: '留言板运营数据统计与分析',
+        dashboardBack: '返回首页',
+        statTotalEver: '历史总留言',
+        statCurrentMessages: '当前留言数',
+        statTotalReplies: '总答复数',
+        statAvgLength: '平均字数',
+        chartDailyTrend: '每日留言趋势（最近30天）',
+        chartHourlyDist: '活跃时段分布（24小时）',
+        chartMessages: '留言数',
+        chartReplies: '答复数',
+        tagRankingTitle: '标签使用排行',
+        tagRankingEmpty: '暂无标签数据',
+        tagUsageCount: function ({ n }) { return n + ' 次'; },
+        topMessagesTitle: '热门留言',
+        topMessagesEmpty: '暂无热门留言',
+        replyCountLabel: function ({ n }) { return n + ' 条答复'; }
     },
     en: {
         headerTitle: 'Simple Message Board',
         headerSubtitle: function ({ max }) { return 'Supports Markdown posts. Press Ctrl + Enter to submit. Keeps up to ' + max + ' entries.'; },
         statsTotal: function ({ total }) { return 'Total ' + total + ' messages'; },
         statsMatches: function ({ total }) { return total + ' result' + (total === 1 ? '' : 's') + ' found'; },
-        statsHistoryTotal: function ({ total }) { return total + ' all-time'; },
+        statsHistoryTotal: function ({ total }) { return total + ' ever posted'; },
         dashboardLink: 'Dashboard',
         submitButton: 'Submit Message',
         toolbarHeading1: 'H1',
@@ -101,6 +120,7 @@ const translations = {
         languageEn: 'English',
         themeLight: 'Light',
         themeDark: 'Dark',
+        themeCyberpunk: 'Neon',
         paginationLabel: function ({ current, totalpages }) { return 'Page ' + current + ' / ' + totalpages; },
         paginationPrev: 'Previous',
         paginationNext: 'Next',
@@ -132,7 +152,25 @@ const translations = {
         shareLink: 'Copy link',
         shareCopied: 'Link copied',
         filterTags: 'Filter by tag',
-        clearFilter: 'Clear filter'
+        clearFilter: 'Clear filter',
+        // Dashboard translations
+        dashboardTitle: 'Analytics Dashboard',
+        dashboardSubtitle: 'Message board statistics and analytics',
+        dashboardBack: 'Back to Home',
+        statTotalEver: 'Total Ever',
+        statCurrentMessages: 'Current Messages',
+        statTotalReplies: 'Total Replies',
+        statAvgLength: 'Avg. Length',
+        chartDailyTrend: 'Daily Trend (Last 30 Days)',
+        chartHourlyDist: 'Hourly Distribution (24h)',
+        chartMessages: 'Messages',
+        chartReplies: 'Replies',
+        tagRankingTitle: 'Tag Ranking',
+        tagRankingEmpty: 'No tag data available',
+        tagUsageCount: function ({ n }) { return n + ' uses'; },
+        topMessagesTitle: 'Top Messages',
+        topMessagesEmpty: 'No popular messages yet',
+        replyCountLabel: function ({ n }) { return n + ' repl' + (n === 1 ? 'y' : 'ies'); }
     }
 };
 
@@ -258,8 +296,7 @@ function initializeTheme() {
         stored = null;
     }
 
-    const preferred = media.matches ? 'dark' : 'light';
-    const initial = stored === 'dark' || stored === 'light' ? stored : preferred;
+    const initial = ['light', 'dark', 'cyberpunk'].includes(stored) ? stored : 'cyberpunk';
 
     applyTheme(initial);
 
@@ -268,7 +305,21 @@ function initializeTheme() {
     }
 
     themeToggle?.addEventListener('click', () => {
-        const nextTheme = root.classList.contains('dark') ? 'light' : 'dark';
+        let nextTheme = 'light';
+        // Check specific classes
+        const isCyberpunk = root.classList.contains('cyberpunk');
+        const isDark = root.classList.contains('dark');
+        // If "dark" is present but NOT "cyberpunk", then it's standard Dark Mode.
+        const isStandardDark = isDark && !isCyberpunk;
+        
+        if (isCyberpunk) {
+            nextTheme = 'light';
+        } else if (isStandardDark) {
+            nextTheme = 'cyberpunk';
+        } else {
+            // Default to dark (from light or unknown)
+            nextTheme = 'dark';
+        }
         persistTheme(nextTheme);
         applyTheme(nextTheme);
     });
@@ -280,16 +331,21 @@ function initializeTheme() {
         } catch (error) {
             saved = null;
         }
-        if (saved === 'light' || saved === 'dark') {
-            return;
-        }
+        if (saved) return;
         applyTheme(event.matches ? 'dark' : 'light');
     });
 }
 
 function applyTheme(mode) {
     const root = document.documentElement;
-    root.classList.toggle('dark', mode === 'dark');
+    root.classList.remove('light', 'dark', 'cyberpunk');
+    
+    if (mode === 'cyberpunk') {
+        root.classList.add('dark', 'cyberpunk');
+    } else {
+        root.classList.add(mode);
+    }
+    
     updateThemeToggle(mode);
 }
 
@@ -298,11 +354,23 @@ function updateThemeToggle(mode) {
     if (!button) return;
     const icon = button.querySelector('span[aria-hidden="true"]');
     const label = button.querySelector('.theme-toggle-label');
+    
+    let iconText = '☀️';
+    let labelKey = 'themeLight';
+
+    if (mode === 'dark') {
+        iconText = '🌙';
+        labelKey = 'themeDark';
+    } else if (mode === 'cyberpunk') {
+        iconText = '🔮';
+        labelKey = 'themeCyberpunk';
+    }
+
     if (icon) {
-        icon.textContent = mode === 'dark' ? '🌙' : '☀️';
+        icon.textContent = iconText;
     }
     if (label) {
-        label.textContent = mode === 'dark' ? t('themeDark') : t('themeLight');
+        label.textContent = t(labelKey);
     }
 }
 
@@ -767,13 +835,13 @@ function insertNewMessage(message, listElement, pageSize = Number(document.body?
     // 渲染标签
     let tagsHtml = '';
     if (message.tags && message.tags.length > 0) {
-        tagsHtml = '<div class="message-tags flex flex-wrap gap-2 mt-3" data-all-tags=\'' + escapeAttributeClient(JSON.stringify(message.tags)) + '\'>';
+        tagsHtml = '<div class="message-tags flex flex-wrap gap-2 mt-4" data-all-tags=\'' + escapeAttributeClient(JSON.stringify(message.tags)) + '\'>';
         message.tags.forEach(function(tag) {
             tagsHtml += '<a href="/?tag=' + tag.id + '" ' +
-                'class="tag-item group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95" ' +
-                'style="background-color: ' + tag.color + '10; color: ' + tag.color + '; border: 1px solid ' + tag.color + '20;" ' +
+                'class="tag-item group inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 hover:shadow-sm active:scale-95" ' +
+                'style="background-color: ' + tag.color + '15; color: ' + tag.color + ';" ' +
                 'data-usage-count="' + (tag.usage_count || 0) + '">' +
-                '<span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>' +
+                '<span class="opacity-40 transition-opacity group-hover:opacity-60">#</span>' +
                 escapeHtmlClient(tag.name) +
                 '</a>';
         });
