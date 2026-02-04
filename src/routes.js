@@ -118,6 +118,12 @@ async function handleDelete(req, res) {
     const searchTerm = typeof q === 'string' ? q.trim() : '';
     const tagFilter = typeof tag === 'string' ? tag.trim() : '';
 
+    // Validate id exists
+    if (!id) {
+        redirect(res, buildListPath(1, searchTerm, tagFilter));
+        return;
+    }
+
     await deleteMessage(id);
 
     // Use filtered count instead of global count to compute correct total pages
@@ -180,8 +186,6 @@ async function handleDeleteReply(req, res) {
     const body = await readBody(req);
     const { id, page, q, tag } = querystring.parse(body);
 
-    await deleteReply(id);
-
     const searchTerm = typeof q === 'string' ? q.trim() : '';
     const tagFilter = typeof tag === 'string' ? tag.trim() : '';
     let targetPage = Number.parseInt(page, 10);
@@ -189,6 +193,13 @@ async function handleDeleteReply(req, res) {
         targetPage = 1;
     }
 
+    // Validate id exists
+    if (!id) {
+        redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
+        return;
+    }
+
+    await deleteReply(id);
     redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
 }
 
