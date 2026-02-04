@@ -5,12 +5,17 @@ const { version, versionDate } = require('../../package.json');
 
 /**
  * Validate and sanitize tag color to prevent XSS
+ * Always returns 6-digit hex for consistent transparency suffix handling
  */
 function getSafeColor(color) {
     if (!color || typeof color !== 'string') return '#888888';
-    // Only allow valid hex colors
+    // 6-digit hex - return as-is
     if (/^#[0-9A-Fa-f]{6}$/.test(color)) return color;
-    if (/^#[0-9A-Fa-f]{3}$/.test(color)) return color;
+    // 3-digit hex - expand to 6-digit (e.g., #abc -> #aabbcc)
+    if (/^#[0-9A-Fa-f]{3}$/.test(color)) {
+        const r = color[1], g = color[2], b = color[3];
+        return `#${r}${r}${g}${g}${b}${b}`;
+    }
     return '#888888';
 }
 
