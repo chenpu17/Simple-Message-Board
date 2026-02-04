@@ -339,14 +339,31 @@ function initializeTheme() {
 function applyTheme(mode) {
     const root = document.documentElement;
     root.classList.remove('light', 'dark', 'cyberpunk');
-    
+
     if (mode === 'cyberpunk') {
         root.classList.add('dark', 'cyberpunk');
     } else {
         root.classList.add(mode);
     }
-    
+
+    // 动态加载主题 CSS
+    loadThemeCSS(mode);
+
     updateThemeToggle(mode);
+}
+
+function loadThemeCSS(theme) {
+    const themeId = 'theme-stylesheet';
+    let link = document.getElementById(themeId);
+
+    if (!link) {
+        link = document.createElement('link');
+        link.id = themeId;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }
+
+    link.href = `/static/themes/theme-${theme}.css`;
 }
 
 function updateThemeToggle(mode) {

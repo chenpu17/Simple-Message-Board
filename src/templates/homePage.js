@@ -436,119 +436,10 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
             }
         };
     </script>
-    <style>
-        :root {
-            color-scheme: light;
-            --background: 0 0% 100%;
-            --foreground: 222.2 47.4% 11.2%;
-            --muted: 210 40% 96.1%;
-            --muted-foreground: 215.4 16.3% 46.9%;
-            --popover: 0 0% 100%;
-            --popover-foreground: 222.2 47.4% 11.2%;
-            --border: 214.3 31.8% 91.4%;
-            --input: 214.3 31.8% 91.4%;
-            --card: 0 0% 100%;
-            --card-foreground: 222.2 47.4% 11.2%;
-            --primary: 221.2 83.2% 53.3%;
-            --primary-foreground: 210 40% 98%;
-            --secondary: 210 40% 96.1%;
-            --secondary-foreground: 222.2 47.4% 11.2%;
-            --accent: 210 40% 96.1%;
-            --accent-foreground: 222.2 47.4% 11.2%;
-            --destructive: 0 72.2% 50.6%;
-            --destructive-foreground: 210 40% 98%;
-            --ring: 221.2 83.2% 53.3%;
-            --radius: 0.9rem;
-        }
-
-        .dark {
-            color-scheme: dark;
-            --background: 222.2 84% 4.9%;
-            --foreground: 210 40% 98%;
-            --muted: 217.2 32.6% 17.5%;
-            --muted-foreground: 215 20.2% 65.1%;
-            --popover: 222.2 84% 4.9%;
-            --popover-foreground: 210 40% 98%;
-            --border: 217.2 32.6% 17.5%;
-            --input: 217.2 32.6% 17.5%;
-            --card: 222.2 84% 4.9%;
-            --card-foreground: 210 40% 98%;
-            --primary: 217.2 91.2% 59.8%;
-            --primary-foreground: 222.2 47.4% 11.2%;
-            --secondary: 217.2 32.6% 17.5%;
-            --secondary-foreground: 210 40% 98%;
-            --accent: 217.2 32.6% 17.5%;
-            --accent-foreground: 210 40% 98%;
-            --destructive: 0 62.8% 45.6%;
-            --destructive-foreground: 210 40% 98%;
-            --ring: 224.3 76.3% 48%;
-        }
-
-        html.cyberpunk {
-            color-scheme: dark;
-            --background: 280 60% 5%;
-            --foreground: 180 100% 50%; /* Neon Cyan */
-            --muted: 280 40% 15%;
-            --muted-foreground: 300 100% 70%; /* Neon Pinkish */
-            --popover: 280 60% 5%;
-            --popover-foreground: 180 100% 50%;
-            --border: 320 100% 50%; /* Neon Pink Border */
-            --input: 280 40% 20%;
-            --card: 280 50% 8%;
-            --card-foreground: 180 100% 50%;
-            --primary: 320 100% 50%; /* Neon Pink */
-            --primary-foreground: 280 60% 5%;
-            --secondary: 260 100% 50%; /* Neon Purple */
-            --secondary-foreground: 210 40% 98%;
-            --accent: 60 100% 50%; /* Neon Yellow */
-            --accent-foreground: 280 60% 5%;
-            --destructive: 0 100% 50%;
-            --destructive-foreground: 210 40% 98%;
-            --ring: 180 100% 50%;
-            --radius: 0px; /* Sharp corners */
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-        }
-
-        /* Cyberpunk specific visual overrides */
-        .cyberpunk .glass-card-hover,
-        .cyberpunk .glass-card,
-        .cyberpunk input,
-        .cyberpunk textarea,
-        .cyberpunk button,
-        .cyberpunk .rounded-xl,
-        .cyberpunk .rounded-lg,
-        .cyberpunk .rounded-md,
-        .cyberpunk .rounded-full {
-            border-radius: 0 !important;
-        }
-
-        .cyberpunk body {
-            background-image: 
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            background-color: hsl(280, 60%, 5%);
-        }
-
-        /* Hide the soft gradients in cyberpunk mode to keep it crisp */
-        .cyberpunk .blur-3xl {
-            display: none;
-        }
-        
-        .cyberpunk .glass-card-hover {
-            border: 1px solid hsl(var(--border));
-            box-shadow: 0 0 10px hsl(var(--border) / 0.3), inset 0 0 20px hsl(var(--border) / 0.1);
-            background: rgba(10, 10, 15, 0.8);
-        }
-
-        .cyberpunk .glass-card-hover:hover {
-            box-shadow: 0 0 15px hsl(var(--border) / 0.6), inset 0 0 30px hsl(var(--border) / 0.2);
-            transform: translate(-2px, -2px);
-        }
-    </style>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600|jetbrains-mono:400,500" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/static/themes/theme-cyberpunk.css" id="theme-stylesheet">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body class="min-h-screen bg-background text-foreground" data-search-term="${searchValueAttr}" data-page-size="${PAGE_SIZE}" data-tag-filter="${tagFilter ? escapeAttribute(tagFilter) : ''}">
@@ -567,17 +458,17 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                             <p class="text-sm text-muted-foreground" data-i18n="headerSubtitle" data-max="${MAX_MESSAGES}">支持 Markdown 留言，按 Ctrl + Enter 快速提交。最多保留 ${MAX_MESSAGES} 条。</p>
                         </div>
                         <div class="flex items-center gap-3 self-end sm:self-auto">
-                            <span class="inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground" data-i18n="${searchTerm ? 'statsMatches' : 'statsTotal'}" data-total="${totalMessages}">${searchTerm ? `共 ${totalMessages} 条匹配` : `共 ${totalMessages} 条留言`}</span>
-                            <span class="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary" data-i18n="statsHistoryTotal" data-total="${totalMessagesEver}">历史 ${totalMessagesEver} 条</span>
-                            <a href="/dashboard" class="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <span class="inline-flex items-center whitespace-nowrap rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground" data-i18n="${searchTerm ? 'statsMatches' : 'statsTotal'}" data-total="${totalMessages}">${searchTerm ? `共 ${totalMessages} 条匹配` : `共 ${totalMessages} 条留言`}</span>
+                            <span class="inline-flex items-center whitespace-nowrap rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary" data-i18n="statsHistoryTotal" data-total="${totalMessagesEver}">历史 ${totalMessagesEver} 条</span>
+                            <a href="/dashboard" class="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>
                                 <span data-i18n="dashboardLink">数据看板</span>
                             </a>
-                            <button type="button" id="language-toggle" class="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <button type="button" id="language-toggle" class="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <span aria-hidden="true">🌐</span>
                                 <span class="language-toggle-label" data-i18n="languageZh">中文</span>
                             </button>
-                            <button type="button" id="theme-toggle" class="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <button type="button" id="theme-toggle" class="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <span aria-hidden="true">☀️</span>
                                 <span class="theme-toggle-label">亮色</span>
                             </button>
