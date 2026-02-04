@@ -153,8 +153,6 @@ async function handleReply(req, res) {
     const body = await readBody(req);
     const { message_id, content, page, q, tag } = querystring.parse(body);
 
-    await createReply(message_id, content);
-
     const searchTerm = typeof q === 'string' ? q.trim() : '';
     const tagFilter = typeof tag === 'string' ? tag.trim() : '';
     let targetPage = Number.parseInt(page, 10);
@@ -162,6 +160,19 @@ async function handleReply(req, res) {
         targetPage = 1;
     }
 
+    // Validate content is non-empty
+    if (!content || typeof content !== 'string' || !content.trim()) {
+        redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
+        return;
+    }
+
+    // Validate message_id exists
+    if (!message_id) {
+        redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
+        return;
+    }
+
+    await createReply(message_id, content);
     redirect(res, buildListPath(targetPage, searchTerm, tagFilter));
 }
 
