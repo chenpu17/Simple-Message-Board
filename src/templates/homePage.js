@@ -3,6 +3,17 @@ const { escapeAttribute, escapeHtml, formatDisplayTime } = require('../utils/for
 const { buildListPath } = require('../utils/paths');
 const { version, versionDate } = require('../../package.json');
 
+/**
+ * Validate and sanitize tag color to prevent XSS
+ */
+function getSafeColor(color) {
+    if (!color || typeof color !== 'string') return '#888888';
+    // Only allow valid hex colors
+    if (/^#[0-9A-Fa-f]{6}$/.test(color)) return color;
+    if (/^#[0-9A-Fa-f]{3}$/.test(color)) return color;
+    return '#888888';
+}
+
 function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
     const safeMarkdown = escapeAttribute(reply.content);
     const fallbackHtml = escapeHtml(reply.content);
@@ -88,7 +99,7 @@ function renderMessageItem({ id, content, created_at, tags, replies }, currentPa
             ${tags.map(tag => `
                 <a href="/?tag=${tag.id}"
                    class="tag-item group inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-all hover:brightness-105 active:scale-95"
-                   style="background-color: ${tag.color}10; color: ${tag.color}; border: 1px solid ${tag.color}20;"
+                   style="background-color: ${getSafeColor(tag.color)}10; color: ${getSafeColor(tag.color)}; border: 1px solid ${getSafeColor(tag.color)}20;"
                    data-usage-count="${tag.usage_count || 0}">
                     <span class="opacity-50 transition-opacity group-hover:opacity-70">#</span>
                     ${escapeHtml(tag.name)}
@@ -237,8 +248,9 @@ function renderTagSidebar(allTags, tagFilter) {
 
         if (isActive) {
             classes += " font-medium shadow-sm ring-1 ring-inset";
-            style = `background-color: ${tag.color}15; color: ${tag.color}; --tw-ring-color: ${tag.color}40;`;
-            countStyle = `background-color: ${tag.color}; color: white;`;
+            const safeColor = getSafeColor(tag.color);
+            style = `background-color: ${safeColor}15; color: ${safeColor}; --tw-ring-color: ${safeColor}40;`;
+            countStyle = `background-color: ${safeColor}; color: white;`;
         } else {
             classes += " text-muted-foreground hover:bg-muted/60 hover:text-foreground";
             style = "";
@@ -251,7 +263,7 @@ function renderTagSidebar(allTags, tagFilter) {
                style="${style}"
                title="${escapeAttribute(tag.name)}">
                 <span class="flex items-center gap-2 min-w-0 flex-1">
-                    <span class="inline-block h-1.5 w-1.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${tag.color};"></span>
+                    <span class="inline-block h-1.5 w-1.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${getSafeColor(tag.color)};"></span>
                     <span class="truncate relative top-[0.5px]">${escapeHtml(tag.name)}</span>
                 </span>
                 <span class="flex-shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold transition-colors group-hover:bg-background/80" style="${countStyle}">
@@ -542,7 +554,7 @@ function renderMobileTagFilter(allTags, tagFilter) {
     const tagItems = allTags.map(tag => {
         const isActive = currentTagId === String(tag.id);
         return `<a href="/?tag=${tag.id}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'}">
-            <span class="w-2 h-2 rounded-full" style="background:${tag.color}"></span>
+            <span class="w-2 h-2 rounded-full" style="background:${getSafeColor(tag.color)}"></span>
             ${escapeHtml(tag.name)}
         </a>`;
     }).join('');

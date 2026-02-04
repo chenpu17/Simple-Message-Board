@@ -94,6 +94,12 @@ async function handleSubmit(req, res) {
     const body = await readBody(req);
     const { message, tags } = querystring.parse(body);
 
+    // Validate message is non-empty
+    if (!message || typeof message !== 'string' || !message.trim()) {
+        redirect(res, '/');
+        return;
+    }
+
     // 解析标签：支持逗号分隔或空格分隔
     let tagArray = [];
     if (tags && typeof tags === 'string') {

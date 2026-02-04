@@ -1275,11 +1275,18 @@ function showConfirmDialog(title, message, onConfirm) {
     const close = () => {
         dialog.classList.add('hidden');
         document.removeEventListener('keydown', handleKeydown);
+        backdrop.onclick = null;
+        noBtn.onclick = null;
+        yesBtn.onclick = null;
     };
 
     const handleKeydown = (e) => {
         if (e.key === 'Escape') close();
-        if (e.key === 'Enter') { onConfirm(); close(); }
+        // Only trigger on Enter if confirm button is focused
+        if (e.key === 'Enter' && document.activeElement === yesBtn) {
+            onConfirm();
+            close();
+        }
     };
 
     document.addEventListener('keydown', handleKeydown);
@@ -1343,7 +1350,7 @@ function formatRelativeTime(isoString) {
     const diffHr = Math.floor(diffMs / 3600000);
     const diffDay = Math.floor(diffMs / 86400000);
 
-    if (diffMin < 1) return t('timeJustNow');
+    if (diffMs < 0 || diffMin < 1) return t('timeJustNow');
     if (diffMin < 60) return t('timeMinutesAgo', { n: diffMin });
     if (diffHr < 24) return t('timeHoursAgo', { n: diffHr });
     if (diffDay < 7) return t('timeDaysAgo', { n: diffDay });
@@ -1367,10 +1374,13 @@ function updateRelativeTimes() {
 /**
  * 初始化相对时间显示（含自动更新）
  */
+let relativeTimeInterval = null;
 function initializeRelativeTime() {
     updateRelativeTimes();
+    // Clear existing interval if any
+    if (relativeTimeInterval) clearInterval(relativeTimeInterval);
     // Auto-update every minute
-    setInterval(updateRelativeTimes, 60000);
+    relativeTimeInterval = setInterval(updateRelativeTimes, 60000);
 }
 
 /**
@@ -1415,8 +1425,13 @@ function initializeCollapsibleContent() {
                 gradient.style.display = '';
                 btn.textContent = t('expandText');
             } else {
-                // Use stored original height
-                content.style.maxHeight = content.dataset.originalHeight + 'px';
+                // Recalculate scrollHeight for accurate expansion (handles async content)
+                content.style.maxHeight = 'none';
+                const fullHeight = content.scrollHeight;
+                content.style.maxHeight = MAX_HEIGHT + 'px';
+                // Force reflow then animate
+                content.offsetHeight;
+                content.style.maxHeight = fullHeight + 'px';
                 content.dataset.expanded = 'true';
                 gradient.style.display = 'none';
                 btn.textContent = t('collapseText');
@@ -1500,7 +1515,9 @@ function scrollToTargetMessage() {
     const hash = window.location.hash;
     if (!hash || !hash.startsWith('#msg-')) return;
 
-    const target = document.querySelector(hash);
+    // Use getElementById to avoid CSS selector injection
+    const msgId = hash.slice(1);
+    const target = document.getElementById(msgId);
     if (target) {
         setTimeout(() => {
             target.scrollIntoView({ behavior: 'smooth', block: 'center' });
