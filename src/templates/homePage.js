@@ -281,7 +281,7 @@ function renderTagSidebar(allTags, tagFilter) {
     `;
 }
 
-function renderHomePage({ messages, searchTerm, totalMessages, totalPages, currentPage, tagFilter, allTags = [] }) {
+function renderHomePage({ messages, searchTerm, totalMessages, totalPages, currentPage, tagFilter, allTags = [], totalMessagesEver = 0 }) {
     const listItems = renderList(messages, searchTerm, currentPage, tagFilter);
     const pagination = renderPagination(currentPage, totalPages, searchTerm, tagFilter);
     const searchValueAttr = escapeAttribute(searchTerm);
@@ -430,6 +430,11 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                         </div>
                         <div class="flex items-center gap-3 self-end sm:self-auto">
                             <span class="inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground" data-i18n="${searchTerm ? 'statsMatches' : 'statsTotal'}" data-total="${totalMessages}">${searchTerm ? `共 ${totalMessages} 条匹配` : `共 ${totalMessages} 条留言`}</span>
+                            <span class="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary" data-i18n="statsHistoryTotal" data-total="${totalMessagesEver}">历史 ${totalMessagesEver} 条</span>
+                            <a href="/dashboard" class="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>
+                                <span data-i18n="dashboardLink">数据看板</span>
+                            </a>
                             <button type="button" id="language-toggle" class="inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <span aria-hidden="true">🌐</span>
                                 <span class="language-toggle-label" data-i18n="languageZh">中文</span>

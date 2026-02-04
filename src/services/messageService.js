@@ -3,6 +3,7 @@ const { PAGE_SIZE, MAX_MESSAGES, MAX_PAGES } = require('../config');
 const { buildSearchClause } = require('../utils/search');
 const { addTagsToMessage, getMessageTagsBatch, removeMessageTags } = require('./tagService');
 const { getRepliesBatch } = require('./replyService');
+const { incrementDailyMessageCount } = require('./statsService');
 
 async function listMessages(searchRaw, requestedPage, tagFilter) {
     const { clause: searchClause, params: searchParams, term: searchTerm } = buildSearchClause(searchRaw || '');
@@ -77,6 +78,12 @@ async function createMessage(content, tagNames) {
     const createdAt = new Date().toISOString();
     const result = await dbRun('INSERT INTO messages (content, created_at) VALUES (?, ?)', [trimmed, createdAt]);
     const messageId = result.lastID;
+
+    // 递增历史总留言数
+    await dbRun('UPDATE stats SET value = value + 1 WHERE key = ?', ['total_messages_ever']);
+
+    // 递增今日留言计数
+    await incrementDailyMessageCount();
 
     // 添加标签
     if (Array.isArray(tagNames) && tagNames.length > 0) {
@@ -175,11 +182,17 @@ async function getFilteredCount(searchRaw, tagFilter) {
     return totalRow?.count ? Number(totalRow.count) : 0;
 }
 
+async function getTotalMessagesEver() {
+    const row = await dbGet('SELECT value FROM stats WHERE key = ?', ['total_messages_ever']);
+    return row?.value ? Number(row.value) : 0;
+}
+
 module.exports = {
     listMessages,
     createMessage,
     deleteMessage,
     fetchMessagesSince,
     getTotalCount,
-    getFilteredCount
+    getFilteredCount,
+    getTotalMessagesEver
 };

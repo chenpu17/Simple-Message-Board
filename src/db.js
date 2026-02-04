@@ -73,6 +73,33 @@ function initDb() {
             CREATE INDEX IF NOT EXISTS idx_replies_message_id
             ON replies (message_id)
         `);
+
+        // 统计表 - 存储历史总留言数
+        db.run(`
+            CREATE TABLE IF NOT EXISTS stats (
+                key TEXT PRIMARY KEY,
+                value INTEGER NOT NULL DEFAULT 0
+            )
+        `);
+
+        // 初始化历史总留言数（如果不存在）
+        db.run(`
+            INSERT OR IGNORE INTO stats (key, value) VALUES ('total_messages_ever', 0)
+        `);
+
+        // 每日统计表 - 永久保存历史数据
+        db.run(`
+            CREATE TABLE IF NOT EXISTS daily_stats (
+                date TEXT PRIMARY KEY,
+                message_count INTEGER NOT NULL DEFAULT 0,
+                reply_count INTEGER NOT NULL DEFAULT 0
+            )
+        `);
+
+        db.run(`
+            CREATE INDEX IF NOT EXISTS idx_daily_stats_date
+            ON daily_stats (date DESC)
+        `);
     });
 }
 

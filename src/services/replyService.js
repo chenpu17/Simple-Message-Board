@@ -1,4 +1,5 @@
 const { dbAll, dbGet, dbRun } = require('../db');
+const { incrementDailyReplyCount } = require('./statsService');
 
 /**
  * 获取指定留言的所有答复
@@ -65,6 +66,9 @@ async function createReply(messageId, content) {
         'INSERT INTO replies (message_id, content, created_at) VALUES (?, ?, ?)',
         [id, trimmed, createdAt]
     );
+
+    // 递增今日答复计数
+    await incrementDailyReplyCount();
 
     return {
         id: result.lastID,

@@ -2,10 +2,12 @@ const url = require('url');
 const querystring = require('querystring');
 const { sendHtml, sendJson, redirect, notFound, serveStatic } = require('./utils/http');
 const { readBody } = require('./utils/body');
-const { listMessages, createMessage, deleteMessage, fetchMessagesSince, getTotalCount, getFilteredCount } = require('./services/messageService');
+const { listMessages, createMessage, deleteMessage, fetchMessagesSince, getTotalCount, getFilteredCount, getTotalMessagesEver } = require('./services/messageService');
 const { getAllTags } = require('./services/tagService');
 const { createReply, deleteReply } = require('./services/replyService');
+const { getSummaryStats } = require('./services/statsService');
 const { renderHomePage } = require('./templates/homePage');
+const { renderDashboardPage } = require('./templates/dashboardPage');
 const { buildListPath } = require('./utils/paths');
 const { MAX_PAGES, PAGE_SIZE } = require('./config');
 
@@ -22,6 +24,11 @@ async function routeRequest(req, res) {
 
     if (req.method === 'GET' && pathname === '/') {
         await handleHome(res, query);
+        return;
+    }
+
+    if (req.method === 'GET' && pathname === '/dashboard') {
+        await handleDashboard(res);
         return;
     }
 
@@ -65,9 +72,22 @@ async function handleHome(res, query) {
 
     const data = await listMessages(searchRaw, pageRaw, tagFilter);
     const allTags = await getAllTags();
+    const totalMessagesEver = await getTotalMessagesEver();
 
-    const html = renderHomePage({ ...data, allTags });
+    const html = renderHomePage({ ...data, allTags, totalMessagesEver });
     sendHtml(res, html);
+}
+
+async function handleDashboard(res) {
+    try {
+        const stats = await getSummaryStats();
+        const html = renderDashboardPage(stats);
+        sendHtml(res, html);
+    } catch (error) {
+        console.error('Dashboard error:', error);
+        res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end('<h1>数据加载失败</h1><p>请稍后重试或<a href="/">返回首页</a></p>');
+    }
 }
 
 async function handleSubmit(req, res) {
