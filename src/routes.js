@@ -103,7 +103,7 @@ async function handleSubmit(req, res) {
     }
 
     await createMessage(message, tagArray);
-    redirect(res, '/');
+    redirect(res, '/?submitted=1');
 }
 
 async function handleDelete(req, res) {

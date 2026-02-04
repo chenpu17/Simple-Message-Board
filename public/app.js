@@ -51,7 +51,25 @@ const translations = {
         replyButton: '添加答复',
         replyPlaceholder: '输入答复内容...',
         replySubmit: '发送',
-        replyCancel: '取消'
+        replyCancel: '取消',
+        confirmDeleteTitle: '确认删除',
+        confirmDeleteMessage: '确定要删除这条留言吗？此操作无法撤销。',
+        confirmDeleteReply: '确定要删除这条答复吗？',
+        confirmYes: '确认删除',
+        confirmNo: '取消',
+        submitSuccess: '留言发布成功',
+        timeJustNow: '刚刚',
+        timeMinutesAgo: function ({ n }) { return n + ' 分钟前'; },
+        timeHoursAgo: function ({ n }) { return n + ' 小时前'; },
+        timeDaysAgo: function ({ n }) { return n + ' 天前'; },
+        expandText: '展开全文',
+        collapseText: '收起',
+        tabEdit: '编辑',
+        tabPreview: '预览',
+        shareLink: '复制链接',
+        shareCopied: '链接已复制',
+        filterTags: '标签筛选',
+        clearFilter: '清除筛选'
     },
     en: {
         headerTitle: 'Simple Message Board',
@@ -96,7 +114,25 @@ const translations = {
         replyButton: 'Add Reply',
         replyPlaceholder: 'Enter your reply...',
         replySubmit: 'Send',
-        replyCancel: 'Cancel'
+        replyCancel: 'Cancel',
+        confirmDeleteTitle: 'Confirm Delete',
+        confirmDeleteMessage: 'Are you sure you want to delete this message? This action cannot be undone.',
+        confirmDeleteReply: 'Are you sure you want to delete this reply?',
+        confirmYes: 'Delete',
+        confirmNo: 'Cancel',
+        submitSuccess: 'Message posted successfully',
+        timeJustNow: 'just now',
+        timeMinutesAgo: function ({ n }) { return n + ' min ago'; },
+        timeHoursAgo: function ({ n }) { return n + ' hr ago'; },
+        timeDaysAgo: function ({ n }) { return n + ' day' + (n === 1 ? '' : 's') + ' ago'; },
+        expandText: 'Show more',
+        collapseText: 'Show less',
+        tabEdit: 'Edit',
+        tabPreview: 'Preview',
+        shareLink: 'Copy link',
+        shareCopied: 'Link copied',
+        filterTags: 'Filter by tag',
+        clearFilter: 'Clear filter'
     }
 };
 
@@ -535,13 +571,17 @@ function showToast(message, type = 'default') {
     const toast = document.createElement('div');
     toast.className = 'pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-foreground px-4 py-2.5 text-sm font-medium text-background shadow-lg shadow-black/10 transition-all duration-300 translate-y-8 opacity-0';
     
-    // Icon based on type (optional, simpler to just use text for now or SVG)
-    let icon = '';
+    // Icon based on type (hardcoded SVG is safe)
     if (type === 'success') {
-        icon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        const iconSpan = document.createElement('span');
+        iconSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+        toast.appendChild(iconSpan);
     }
-    
-    toast.innerHTML = `${icon}<span>${message}</span>`;
+
+    // Use textContent to prevent XSS
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+    toast.appendChild(textSpan);
 
     container.appendChild(toast);
 
@@ -1188,6 +1228,335 @@ function renderReplyMarkdown(root = document) {
     }
 }
 
+/**
+ * 创建确认对话框 DOM 结构
+ */
+function createConfirmDialog() {
+    if (document.getElementById('confirm-dialog')) {
+        return;
+    }
+
+    const dialog = document.createElement('div');
+    dialog.id = 'confirm-dialog';
+    dialog.className = 'fixed inset-0 z-50 hidden';
+    dialog.innerHTML = `
+        <div class="confirm-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="confirm-content fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h3 class="confirm-title text-lg font-semibold text-foreground mb-2"></h3>
+            <p class="confirm-message text-sm text-muted-foreground mb-6"></p>
+            <div class="flex justify-end gap-3">
+                <button type="button" class="confirm-no inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium transition hover:bg-accent hover:text-accent-foreground"></button>
+                <button type="button" class="confirm-yes inline-flex h-10 items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90"></button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+}
+
+/**
+ * 显示确认对话框
+ */
+function showConfirmDialog(title, message, onConfirm) {
+    createConfirmDialog();
+    const dialog = document.getElementById('confirm-dialog');
+    const titleEl = dialog.querySelector('.confirm-title');
+    const messageEl = dialog.querySelector('.confirm-message');
+    const yesBtn = dialog.querySelector('.confirm-yes');
+    const noBtn = dialog.querySelector('.confirm-no');
+    const backdrop = dialog.querySelector('.confirm-backdrop');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    yesBtn.textContent = t('confirmYes');
+    noBtn.textContent = t('confirmNo');
+
+    dialog.classList.remove('hidden');
+
+    const close = () => {
+        dialog.classList.add('hidden');
+        document.removeEventListener('keydown', handleKeydown);
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Escape') close();
+        if (e.key === 'Enter') { onConfirm(); close(); }
+    };
+
+    document.addEventListener('keydown', handleKeydown);
+    backdrop.onclick = close;
+    noBtn.onclick = close;
+    yesBtn.onclick = () => { onConfirm(); close(); };
+    yesBtn.focus();
+}
+
+/**
+ * 初始化删除确认功能
+ */
+function initializeDeleteConfirm() {
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.action?.includes('/delete-reply')) {
+            e.preventDefault();
+            showConfirmDialog(
+                t('confirmDeleteTitle'),
+                t('confirmDeleteReply'),
+                () => form.submit()
+            );
+        } else if (form.action?.includes('/delete')) {
+            e.preventDefault();
+            showConfirmDialog(
+                t('confirmDeleteTitle'),
+                t('confirmDeleteMessage'),
+                () => form.submit()
+            );
+        }
+    });
+}
+
+/**
+ * 检测并显示提交成功提示
+ */
+function checkSubmitSuccess() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('submitted') === '1') {
+        showToast(t('submitSuccess'), 'success');
+        params.delete('submitted');
+        const newUrl = params.toString()
+            ? window.location.pathname + '?' + params.toString()
+            : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+    }
+}
+
+/**
+ * 格式化相对时间
+ */
+function formatRelativeTime(isoString) {
+    const date = new Date(isoString);
+    if (Number.isNaN(date.getTime())) {
+        return isoString;
+    }
+
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMs / 3600000);
+    const diffDay = Math.floor(diffMs / 86400000);
+
+    if (diffMin < 1) return t('timeJustNow');
+    if (diffMin < 60) return t('timeMinutesAgo', { n: diffMin });
+    if (diffHr < 24) return t('timeHoursAgo', { n: diffHr });
+    if (diffDay < 7) return t('timeDaysAgo', { n: diffDay });
+
+    return date.toLocaleString(currentLanguage === 'en' ? 'en' : 'zh-CN', { hour12: false });
+}
+
+/**
+ * 更新所有相对时间显示
+ */
+function updateRelativeTimes() {
+    document.querySelectorAll('[data-timestamp]').forEach((el) => {
+        const iso = el.dataset.timestamp;
+        if (iso) {
+            el.textContent = formatRelativeTime(iso);
+            el.title = new Date(iso).toLocaleString('zh-CN', { hour12: false });
+        }
+    });
+}
+
+/**
+ * 初始化相对时间显示（含自动更新）
+ */
+function initializeRelativeTime() {
+    updateRelativeTimes();
+    // Auto-update every minute
+    setInterval(updateRelativeTimes, 60000);
+}
+
+/**
+ * 初始化长内容折叠功能
+ */
+function initializeCollapsibleContent() {
+    const MAX_HEIGHT = 200;
+    document.querySelectorAll('.message-content').forEach((content) => {
+        if (content.dataset.collapsible === 'true') return;
+
+        // Store original height before collapsing
+        const originalHeight = content.scrollHeight;
+        if (originalHeight <= MAX_HEIGHT) return;
+
+        content.dataset.collapsible = 'true';
+        content.dataset.originalHeight = originalHeight;
+        content.style.maxHeight = MAX_HEIGHT + 'px';
+        content.style.overflow = 'hidden';
+        content.classList.add('relative');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'collapsible-wrapper relative';
+
+        const gradient = document.createElement('div');
+        gradient.className = 'collapsible-gradient absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent pointer-events-none';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'collapsible-btn mt-2 text-xs text-primary hover:underline';
+        btn.textContent = t('expandText');
+
+        content.parentNode.insertBefore(wrapper, content);
+        wrapper.appendChild(content);
+        wrapper.appendChild(gradient);
+        wrapper.appendChild(btn);
+
+        btn.addEventListener('click', () => {
+            const expanded = content.dataset.expanded === 'true';
+            if (expanded) {
+                content.style.maxHeight = MAX_HEIGHT + 'px';
+                content.dataset.expanded = 'false';
+                gradient.style.display = '';
+                btn.textContent = t('expandText');
+            } else {
+                // Use stored original height
+                content.style.maxHeight = content.dataset.originalHeight + 'px';
+                content.dataset.expanded = 'true';
+                gradient.style.display = 'none';
+                btn.textContent = t('collapseText');
+            }
+        });
+    });
+}
+
+/**
+ * 初始化 Markdown 预览功能
+ */
+function initializeMarkdownPreview() {
+    const textarea = document.getElementById('message');
+    if (!textarea) return;
+
+    const toolbarWrapper = document.getElementById('markdown-toolbar');
+    if (!toolbarWrapper) return;
+
+    // 创建标签切换
+    const tabs = document.createElement('div');
+    tabs.className = 'flex border-b border-border mb-0';
+    tabs.innerHTML = `
+        <button type="button" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-primary text-primary" data-tab="edit">${t('tabEdit')}</button>
+        <button type="button" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground" data-tab="preview">${t('tabPreview')}</button>
+    `;
+
+    // 创建预览区域
+    const preview = document.createElement('div');
+    preview.id = 'markdown-preview';
+    preview.className = 'hidden prose prose-slate max-w-none text-sm dark:prose-invert min-h-[140px] p-4 border border-input rounded-b-lg bg-background';
+
+    toolbarWrapper.parentNode.insertBefore(tabs, toolbarWrapper);
+    textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+
+    // 标签切换逻辑
+    tabs.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const isEdit = btn.dataset.tab === 'edit';
+            tabs.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('active', b === btn);
+                b.classList.toggle('border-primary', b === btn);
+                b.classList.toggle('text-primary', b === btn);
+                b.classList.toggle('border-transparent', b !== btn);
+                b.classList.toggle('text-muted-foreground', b !== btn);
+            });
+            toolbarWrapper.classList.toggle('hidden', !isEdit);
+            textarea.classList.toggle('hidden', !isEdit);
+            preview.classList.toggle('hidden', isEdit);
+            if (!isEdit) updatePreview();
+        });
+    });
+
+    function updatePreview() {
+        const text = textarea.value || '';
+        if (window.marked) {
+            const raw = marked.parse(text);
+            preview.innerHTML = window.DOMPurify ? DOMPurify.sanitize(raw) : raw;
+        } else {
+            preview.textContent = text;
+        }
+    }
+}
+
+/**
+ * 初始化留言锚点功能
+ */
+function initializeMessageAnchors() {
+    // 为每条留言添加锚点 ID
+    document.querySelectorAll('li[data-message-id]').forEach(li => {
+        li.id = 'msg-' + li.dataset.messageId;
+    });
+
+    // 检查 URL hash 并滚动到目标留言
+    scrollToTargetMessage();
+
+    // 添加分享按钮
+    addShareButtons();
+}
+
+function scrollToTargetMessage() {
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith('#msg-')) return;
+
+    const target = document.querySelector(hash);
+    if (target) {
+        setTimeout(() => {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+            setTimeout(() => {
+                target.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+            }, 2000);
+        }, 300);
+    }
+}
+
+function addShareButtons() {
+    document.querySelectorAll('li[data-message-id]').forEach(li => {
+        const timeEl = li.querySelector('[data-timestamp]');
+        if (!timeEl || timeEl.dataset.shareAdded) return;
+        timeEl.dataset.shareAdded = 'true';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ml-2 text-muted-foreground hover:text-primary transition opacity-0 group-hover/reply:opacity-100';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+        btn.title = t('shareLink');
+
+        btn.addEventListener('click', () => {
+            const url = window.location.origin + window.location.pathname + '#msg-' + li.dataset.messageId;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast(t('shareCopied'), 'success');
+            }).catch(() => {
+                showToast(t('copyFailure'), 'error');
+            });
+        });
+
+        timeEl.parentNode.insertBefore(btn, timeEl.nextSibling);
+    });
+}
+
+/**
+ * 初始化移动端标签筛选
+ */
+function initializeMobileTagFilter() {
+    const btn = document.getElementById('mobile-tag-btn');
+    const drawer = document.getElementById('mobile-tag-drawer');
+    if (!btn || !drawer) return;
+
+    btn.addEventListener('click', () => {
+        drawer.classList.remove('hidden');
+    });
+
+    // Close drawer when clicking outside or on close button
+    drawer.addEventListener('click', (e) => {
+        if (e.target === drawer || e.target.closest('[data-close-drawer]')) {
+            drawer.classList.add('hidden');
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeLanguage();
     initializeTheme();
@@ -1195,6 +1564,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeAutoRefresh();
     initializeResponsiveTags();
     initializeReplyForms();
+    initializeDeleteConfirm();
+    checkSubmitSuccess();
+    initializeRelativeTime();
+    initializeCollapsibleContent();
+    initializeMarkdownPreview();
+    initializeMessageAnchors();
+    initializeMobileTagFilter();
 
     const textarea = document.getElementById('message');
     if (textarea) {

@@ -18,7 +18,7 @@ function renderReplyItem(reply, messageId, currentPage, searchTerm, tagFilter) {
                 </div>
             </div>
             <div class="flex-1 min-w-0">
-                <p class="text-[10px] font-medium text-muted-foreground mb-1">${displayTime}</p>
+                <p class="text-[10px] font-medium text-muted-foreground mb-1" data-timestamp="${reply.created_at}">${displayTime}</p>
                 <div class="reply-content prose prose-slate max-w-none text-xs dark:prose-invert" data-markdown="${safeMarkdown}">${fallbackHtml}</div>
             </div>
             <form action="/delete-reply" method="post" class="flex-shrink-0 self-start opacity-0 group-hover/item:opacity-100 transition-opacity">
@@ -104,7 +104,7 @@ function renderMessageItem({ id, content, created_at, tags, replies }, currentPa
         <li class="group/reply rounded-xl border border-border bg-card text-card-foreground shadow-sm transition hover:-translate-y-[1px] hover:shadow-md" data-message-id="${id}">
             <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-medium text-muted-foreground mb-2">${displayTime}</p>
+                    <p class="text-xs font-medium text-muted-foreground mb-2" data-timestamp="${created_at}">${displayTime}</p>
                     <div class="message-content prose prose-slate max-w-none text-sm dark:prose-invert" data-markdown="${safeMarkdown}">${fallbackHtml}</div>
                     ${tagsHtml}
                 </div>
@@ -446,7 +446,7 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                         </div>
                     </div>
                     <form action="/submit" method="post" class="space-y-3">
-                        <div class="flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-border bg-muted/40 px-2 py-2">
+                        <div id="markdown-toolbar" class="flex flex-wrap items-center gap-1 rounded-t-lg border border-b-0 border-border bg-muted/40 px-2 py-2">
                             ${renderToolbarButton('heading-1', 'toolbarHeading1', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="m17 12 3-2v8"/></svg>')}
                             ${renderToolbarButton('heading-2', 'toolbarHeading2', '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="M21 18h-4c0-4 4-3 4-6 0-1.5-2-2.5-4-1"/></svg>')}
                             <div class="mx-1 h-4 w-[1px] bg-border"></div>
@@ -471,6 +471,11 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                                 <span data-i18n="submitButton">提交留言</span>
                             </button>
+                            <span class="hidden sm:inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                <kbd class="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">Ctrl</kbd>
+                                <span>+</span>
+                                <kbd class="px-1.5 py-0.5 rounded border border-border bg-muted font-mono text-[10px]">Enter</kbd>
+                            </span>
                         </div>
                     </form>
                 </section>
@@ -510,6 +515,7 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
             </div>
         </main>
     </div>
+    ${renderMobileTagFilter(allTags, tagFilter)}
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" referrerpolicy="no-referrer"></script>
@@ -528,3 +534,37 @@ function renderToolbarButton(action, key, icon) {
 }
 
 module.exports = { renderHomePage };
+
+function renderMobileTagFilter(allTags, tagFilter) {
+    if (!allTags || allTags.length === 0) return '';
+
+    const currentTagId = tagFilter ? String(tagFilter) : null;
+    const tagItems = allTags.map(tag => {
+        const isActive = currentTagId === String(tag.id);
+        return `<a href="/?tag=${tag.id}" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm ${isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-accent'}">
+            <span class="w-2 h-2 rounded-full" style="background:${tag.color}"></span>
+            ${escapeHtml(tag.name)}
+        </a>`;
+    }).join('');
+
+    return `
+    <button id="mobile-tag-btn" class="xl:hidden fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+        ${currentTagId ? '<span class="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full"></span>' : ''}
+    </button>
+    <div id="mobile-tag-drawer" class="xl:hidden fixed inset-0 z-50 hidden">
+        <div class="drawer-backdrop absolute inset-0 bg-black/50" data-close-drawer></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-card rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold" data-i18n="filterTags">标签筛选</h3>
+                <div class="flex items-center gap-3">
+                    ${currentTagId ? '<a href="/" class="text-sm text-primary" data-i18n="clearFilter">清除筛选</a>' : ''}
+                    <button type="button" data-close-drawer class="text-muted-foreground hover:text-foreground p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2">${tagItems}</div>
+        </div>
+    </div>`;
+}
