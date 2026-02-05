@@ -353,6 +353,12 @@ function applyTheme(mode) {
 }
 
 function loadThemeCSS(theme) {
+    const validThemes = ['light', 'dark', 'cyberpunk'];
+    if (!validThemes.includes(theme)) {
+        console.warn('Invalid theme:', theme);
+        theme = 'cyberpunk';
+    }
+
     const themeId = 'theme-stylesheet';
     let link = document.getElementById(themeId);
 
@@ -363,6 +369,7 @@ function loadThemeCSS(theme) {
         document.head.appendChild(link);
     }
 
+    link.onerror = () => console.error('Failed to load theme:', theme);
     link.href = `/static/themes/theme-${theme}.css`;
 }
 

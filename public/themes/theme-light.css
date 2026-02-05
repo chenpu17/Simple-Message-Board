@@ -1,5 +1,6 @@
 /* 亮色主题 - Light Theme */
-:root {
+:root,
+html:not(.dark):not(.cyberpunk) {
     color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;

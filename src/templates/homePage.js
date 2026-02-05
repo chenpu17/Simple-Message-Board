@@ -375,14 +375,16 @@ function renderHomePage({ messages, searchTerm, totalMessages, totalPages, curre
         (function() {
             try {
                 const storedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+                if (storedTheme === 'dark') {
                     document.documentElement.classList.add('dark');
-                } else if (storedTheme === 'cyberpunk') {
-                    document.documentElement.classList.add('cyberpunk');
+                } else if (storedTheme === 'light') {
+                    // light theme, no class needed
+                } else {
+                    // default to cyberpunk (including no stored theme)
+                    document.documentElement.classList.add('dark', 'cyberpunk');
                 }
             } catch (error) {
-                // ignore
+                document.documentElement.classList.add('dark', 'cyberpunk');
             }
         })();
     </script>
